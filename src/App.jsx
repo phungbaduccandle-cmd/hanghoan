@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Info,
   Ban,
+  Download,
 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -83,6 +84,17 @@ function toISO(v) {
     if (!isNaN(d)) return d.toISOString();
   }
   return new Date().toISOString();
+}
+
+function toStorageSafeName(name) {
+  const dot = name.lastIndexOf(".");
+  const base = dot > -1 ? name.slice(0, dot) : name;
+  const ext = dot > -1 ? name.slice(dot) : "";
+  const safeBase = base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  return safeBase + ext;
 }
 
 function toNumber(v) {
@@ -500,9 +512,10 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
    Import View (Shopee Excel upload)
 --------------------------------------------------------- */
 
-function ImportView({ records, onImport }) {
+function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDownloadFile }) {
   const [busy, setBusy] = useState(false);
   const [summaries, setSummaries] = useState([]);
+  const [downloadingId, setDownloadingId] = useState(null);
   const fileRef = useRef(null);
 
   const handleFiles = async (fileList) => {
@@ -522,6 +535,20 @@ function ImportView({ records, onImport }) {
         }
 
         const result = await onImport(parsed);
+
+        let storageWarning = null;
+        try {
+          await onRecordFileHistory({
+            file,
+            fileType: type,
+            rowCount: parsed.length,
+            addedCount: result.added,
+            skippedCount: result.skipped,
+          });
+        } catch (e) {
+          storageWarning = "Đã nhập dữ liệu, nhưng không lưu được bản sao file gốc: " + e.message;
+        }
+
         newSummaries.push({
           file: file.name,
           type,
@@ -530,6 +557,7 @@ function ImportView({ records, onImport }) {
           skipped: result.skipped,
           needsAction: result.needsAction,
           noAction: result.noAction,
+          storageWarning,
         });
       } catch (e) {
         newSummaries.push({ file: file.name, error: "Lỗi đọc file: " + e.message });
@@ -538,6 +566,12 @@ function ImportView({ records, onImport }) {
     setSummaries(newSummaries);
     setBusy(false);
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleDownload = async (entry) => {
+    setDownloadingId(entry.id);
+    await onDownloadFile(entry);
+    setDownloadingId(null);
   };
 
   const typeLabel = {
@@ -600,6 +634,11 @@ function ImportView({ records, onImport }) {
                   Loại: <b>{typeLabel[s.type]}</b> · Đọc được {s.total} dòng → thêm mới <b>{s.added}</b>, bỏ qua (đã có) {s.skipped}.
                   <br />
                   Trong số thêm mới: <b style={{ color: "#9A6B12" }}>{s.needsAction} đơn cần theo dõi hàng về</b>, {s.noAction} đơn không cần xử lý (đã tự động phân loại).
+                  {s.storageWarning && (
+                    <div className="mt-1.5 flex items-center gap-1.5" style={{ color: "#9A6B12" }}>
+                      <Info size={13} /> {s.storageWarning}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -623,6 +662,40 @@ function ImportView({ records, onImport }) {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "#8A8375" }}>
+          Lịch sử file đã tải
+        </h3>
+        <div className="flex flex-col gap-2">
+          {(!fileHistory || fileHistory.length === 0) && (
+            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "#E4DFD4", color: "#B0AA98" }}>
+              Chưa có file nào được lưu lại.
+            </div>
+          )}
+          {(fileHistory || []).map((h) => (
+            <div key={h.id} className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E4DFD4" }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <FileSpreadsheet size={16} style={{ color: "#2F6F76", flexShrink: 0 }} />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold truncate" style={{ color: "#1B1F27" }}>{h.file_name}</div>
+                  <div className="text-xs" style={{ color: "#8A8375" }}>
+                    {typeLabel[h.file_type] || h.file_type} · {h.row_count} dòng · {fmtDate(h.uploaded_at)}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDownload(h)}
+                disabled={downloadingId === h.id}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: "#1B1F27", color: "#F3EFE4" }}
+              >
+                <Download size={13} /> {downloadingId === h.id ? "Đang tải..." : "Tải lại"}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -1008,6 +1081,7 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [prefillCode, setPrefillCode] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [fileHistory, setFileHistory] = useState([]);
 
   const recordsRef = useRef(records);
   recordsRef.current = records;
@@ -1029,9 +1103,53 @@ export default function App() {
         .maybeSingle();
       if (settingsRow?.value) setOverdueDaysState(Number(settingsRow.value) || 15);
 
+      const { data: historyData } = await supabase
+        .from("hang_hoan_file_history")
+        .select("*")
+        .order("uploaded_at", { ascending: false });
+      setFileHistory(historyData || []);
+
       setLoading(false);
     })();
   }, []);
+
+  const recordFileHistory = async ({ file, fileType, rowCount, addedCount, skippedCount }) => {
+    const storagePath = `imports/${Date.now()}-${toStorageSafeName(file.name)}`;
+    const { error: uploadError } = await supabase.storage
+      .from("hang-hoan-files")
+      .upload(storagePath, file, { contentType: file.type || "application/octet-stream" });
+    if (uploadError) throw uploadError;
+
+    const entry = {
+      id: uid(),
+      file_name: file.name,
+      file_type: fileType,
+      storage_path: storagePath,
+      row_count: rowCount,
+      added_count: addedCount,
+      skipped_count: skippedCount,
+      uploaded_at: new Date().toISOString(),
+    };
+    const { error: insertError } = await supabase.from("hang_hoan_file_history").insert(entry);
+    if (insertError) throw insertError;
+    setFileHistory((prev) => [entry, ...prev]);
+  };
+
+  const downloadFile = async (entry) => {
+    const { data, error } = await supabase.storage.from("hang-hoan-files").download(entry.storage_path);
+    if (error) {
+      setSaveError("Không tải được file: " + error.message);
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = entry.file_name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const setOverdueDays = useCallback(async (days) => {
     setOverdueDaysState(days);
@@ -1209,7 +1327,15 @@ export default function App() {
                 onQuickAdd={(code) => { setPrefillCode(code); setShowAdd(true); }}
               />
             )}
-            {view === "import" && <ImportView records={records} onImport={importRecords} />}
+            {view === "import" && (
+              <ImportView
+                records={records}
+                onImport={importRecords}
+                fileHistory={fileHistory}
+                onRecordFileHistory={recordFileHistory}
+                onDownloadFile={downloadFile}
+              />
+            )}
             {view === "list" && <ListView records={records} overdueDays={overdueDays} onComplete={markComplete} />}
           </>
         )}
