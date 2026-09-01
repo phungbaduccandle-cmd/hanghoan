@@ -693,6 +693,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           type,
           total: parsed.length,
           added: result.added,
+          updated: result.updated,
           skipped: result.skipped,
           needsAction: result.needsAction,
           noAction: result.noAction,
@@ -774,7 +775,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
         <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
         <div className="text-sm" style={{ color: "var(--text)" }}>
           <b>Nên tải theo thứ tự:</b> Trả hàng hoàn tiền → Giao không thành công → Đơn huỷ (tải cuối để tránh trùng với các đơn huỷ-do-giao-thất-bại đã có trong file Giao không thành công).
-          Đơn đã tồn tại (theo mã đơn + SKU) sẽ được bỏ qua, không ghi đè.
+          Đơn đã tồn tại (theo mã đơn + SKU) sẽ được cập nhật lại dữ liệu từ file (sản phẩm, ngày, số lượng, số tiền...), riêng trạng thái/ngày nhận/tình trạng hàng đã quét thì giữ nguyên, không bị ghi đè.
         </div>
       </div>
 
@@ -795,7 +796,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
                 </div>
               ) : (
                 <div className="text-sm" style={{ color: "var(--text)" }}>
-                  Loại: <b>{typeLabel[s.type]}</b> · Đọc được {s.total} dòng → thêm mới <b>{s.added}</b>, bỏ qua (đã có) {s.skipped}.
+                  Loại: <b>{typeLabel[s.type]}</b> · Đọc được {s.total} dòng → thêm mới <b>{s.added}</b>, cập nhật lại <b>{s.updated}</b> đơn đã có, bỏ qua (trùng dòng trong file) {s.skipped}.
                   <br />
                   Trong số thêm mới: <b style={{ color: "var(--accent-hover)" }}>{s.needsAction} đơn cần theo dõi hàng về</b>, {s.noAction} đơn không cần xử lý (đã tự động phân loại).
                   {s.storageWarning && (
@@ -1455,20 +1456,51 @@ export default function App() {
     setPrefillCode("");
   };
 
-  // Bulk import from a parsed Shopee file; dedupes by orderCode+sku
+  // Bulk import from a parsed Shopee/TikTok file; matches by orderCode+sku.
+  // Đơn chưa có thì thêm mới; đơn đã có sẵn (vd tạo tạm qua "+ Thêm mới" khi
+  // quét trước khi có file) thì cập nhật lại dữ liệu chuẩn từ file, nhưng
+  // KHÔNG đụng tới status/received_date/item_condition — những trường đó chỉ
+  // đổi qua luồng quét/nhận hàng thật, file không biết việc đó đã xảy ra.
   const importRecords = async (parsed) => {
-    const existingKeys = new Set(
-      recordsRef.current.map((r) => (r.orderCode + "::" + (r.sku || "")).toUpperCase())
+    const normKey = (orderCode, sku) => (orderCode + "::" + (sku || "")).toUpperCase();
+    const existingByKey = new Map(
+      recordsRef.current.map((r) => [normKey(r.orderCode, r.sku), r])
     );
-    let added = 0, skipped = 0, needsAction = 0, noAction = 0;
+    const claimedKeys = new Set();
+
+    let added = 0, updated = 0, skipped = 0, needsAction = 0, noAction = 0;
     const toAdd = [];
+    const toUpdate = [];
+
     for (const p of parsed) {
-      const key = (p.orderCode + "::" + (p.sku || "")).toUpperCase();
-      if (existingKeys.has(key)) {
+      const key = normKey(p.orderCode, p.sku);
+      if (claimedKeys.has(key)) {
         skipped++;
         continue;
       }
-      existingKeys.add(key);
+      claimedKeys.add(key);
+
+      const existing = existingByKey.get(key);
+      if (existing) {
+        updated++;
+        toUpdate.push({
+          id: existing.id,
+          order_code: p.orderCode,
+          sku: p.sku || null,
+          status: existing.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
+          product_name: p.productName || null,
+          request_date: p.requestDate || null,
+          quantity: p.quantity ?? null,
+          order_type: p.orderType || null,
+          reason: p.reason || null,
+          solution_plan: p.solutionPlan || null,
+          amount: p.amount ?? null,
+          source: p.source || null,
+          month: monthLabel(p.requestDate) || null,
+        });
+        continue;
+      }
+
       added++;
       if (p.status === STATUS.NO_ACTION) noAction++;
       else needsAction++;
@@ -1480,18 +1512,51 @@ export default function App() {
         itemCondition: null,
       });
     }
+
     if (toAdd.length) {
       const { error } = await supabase
         .from("hang_hoan_returns")
         .upsert(toAdd.map(recordToRow), { onConflict: "order_code,sku" });
       if (error) {
         setSaveError("Không lưu được dữ liệu nhập: " + error.message);
-        return { added: 0, skipped, needsAction: 0, noAction: 0 };
+        return { added: 0, updated: 0, skipped, needsAction: 0, noAction: 0 };
       }
-      setSaveError("");
-      setRecords((prev) => [...prev, ...toAdd]);
     }
-    return { added, skipped, needsAction, noAction };
+
+    if (toUpdate.length) {
+      const { error } = await supabase
+        .from("hang_hoan_returns")
+        .upsert(toUpdate, { onConflict: "order_code,sku" });
+      if (error) {
+        setSaveError("Không cập nhật được dữ liệu cho các đơn đã có: " + error.message);
+        return { added, updated: 0, skipped, needsAction, noAction };
+      }
+    }
+
+    setSaveError("");
+    if (toAdd.length) setRecords((prev) => [...prev, ...toAdd]);
+    if (toUpdate.length) {
+      const patchById = new Map(toUpdate.map((row) => [row.id, row]));
+      setRecords((prev) =>
+        prev.map((r) => {
+          const patch = patchById.get(r.id);
+          if (!patch) return r;
+          return {
+            ...r,
+            productName: patch.product_name,
+            requestDate: patch.request_date,
+            quantity: patch.quantity,
+            orderType: patch.order_type,
+            reason: patch.reason,
+            solutionPlan: patch.solution_plan,
+            amount: patch.amount,
+            source: patch.source,
+            month: patch.month,
+          };
+        })
+      );
+    }
+    return { added, updated, skipped, needsAction, noAction };
   };
 
   const resolveScan = async (ids, condition) => {
