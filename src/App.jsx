@@ -43,7 +43,7 @@ const STATUS_STYLE = {
 
 const ORDER_TYPES = ["Trả hàng hoàn tiền", "Bùng đơn", "Đơn huỷ", "Giao không thành công"];
 const ACTUAL_CONDITIONS = ["Hàng lỗi,hỏng", "Thiếu hàng", "Sai hàng", "Khác"];
-const SOLUTION_PLANS = ["Hoàn tiền ngay", "Trả hàng & Hoàn tiền", "Lên đơn ngoài", "Khác"];
+const SOLUTION_PLANS = ["Lên đơn ngoài", "Hoàn tiền ngay"];
 const SHOPS = ["dhhandmade", "dothoductin", "ductincandle", "thaomocnhalanh", "Thuytrang"];
 
 /* ---------------------------------------------------------
@@ -543,7 +543,7 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
     sku: "",
     shop: "ductincandle",
     quantity: 1,
-    orderType: ORDER_TYPES[0],
+    orderType: "Xử lý ngoài",
     reason: "",
     actualCondition: ACTUAL_CONDITIONS[0],
     solutionPlan: SOLUTION_PLANS[0],
@@ -591,18 +591,15 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
             <input className={inputCls} style={inputStyle} value={form.sku} onChange={set("sku")} />
           </Field>
           <Field label="Shop">
-            <input className={inputCls} style={inputStyle} value={form.shop} onChange={set("shop")} />
+            <select className={inputCls} style={inputStyle} value={form.shop} onChange={set("shop")}>
+              {SHOPS.map((s) => <option key={s}>{s}</option>)}
+            </select>
           </Field>
           <Field label="Số lượng">
             <input type="number" min="1" className={inputCls} style={inputStyle} value={form.quantity} onChange={set("quantity")} />
           </Field>
           <Field label="Ngày yêu cầu hoàn">
             <input type="datetime-local" className={inputCls} style={inputStyle} value={form.requestDate} onChange={set("requestDate")} />
-          </Field>
-          <Field label="Loại tình huống">
-            <select className={inputCls} style={inputStyle} value={form.orderType} onChange={set("orderType")}>
-              {ORDER_TYPES.map((o) => <option key={o}>{o}</option>)}
-            </select>
           </Field>
           <div className="col-span-2">
             <Field label="Lý do khách hoàn">
