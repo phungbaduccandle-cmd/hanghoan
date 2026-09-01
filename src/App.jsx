@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
+import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "./supabaseClient";
 import {
   ScanLine,
@@ -18,6 +19,7 @@ import {
   Info,
   Ban,
   Download,
+  Camera,
 } from "lucide-react";
 
 /* ---------------------------------------------------------
@@ -103,6 +105,26 @@ function toNumber(v) {
   return isNaN(n) ? null : n;
 }
 
+// TikTok exports "82.912₫" (dấu chấm là phân cách nghìn, không phải thập phân)
+function toNumberTiktokVND(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(String(v).replace(/[^\d]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+// TikTok xuất ngày giờ dạng chuỗi "DD/MM/YYYY HH:mm:ss" mà new Date() không tự đọc đúng
+function toISOTiktok(v) {
+  if (typeof v === "string") {
+    const m = v.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2}):(\d{2})$/);
+    if (m) {
+      const [, d, mo, y, h, mi, s] = m;
+      const dt = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+      if (!isNaN(dt)) return dt.toISOString();
+    }
+  }
+  return toISO(v);
+}
+
 function getEffectiveStatus(rec, overdueDays) {
   if (
     rec.status === STATUS.RECEIVED ||
@@ -141,6 +163,7 @@ function rowToRecord(row) {
     receivedDate: row.received_date,
     itemCondition: row.item_condition,
     month: row.month,
+    shop: row.shop,
   };
 }
 
@@ -163,6 +186,7 @@ function recordToRow(rec) {
     received_date: rec.receivedDate || null,
     item_condition: rec.itemCondition || null,
     month: rec.month || null,
+    shop: rec.shop || null,
   };
 }
 
@@ -175,6 +199,8 @@ function detectFileType(headerRow) {
   if (h.includes("Lí do Trả hàng/Hoàn tiền") && h.includes("Phương án")) return "return_refund";
   if (h.includes("Lý do hủy")) return "cancelled";
   if (h.includes("Trạng thái trả hàng")) return "failed_delivery";
+  if (h.includes("Return Order ID")) return "tiktok_return_refund";
+  if (h.includes("Cancelation/Return Type")) return "tiktok_order_status";
   return "unknown";
 }
 
@@ -337,12 +363,121 @@ function parseFailedDelivery(rows) {
   return out;
 }
 
+function parseTiktokReturnRefund(rows) {
+  const header = rows[0].map((x) => String(x || "").trim());
+  const col = (name) => header.indexOf(name);
+
+  const iOrder = col("Order ID");
+  const iSku = col("Seller SKU");
+  const iProduct = col("Product Name");
+  const iReqDate = col("Time Requested");
+  const iQty = col("Return Quantity");
+  const iReason = col("Return Reason");
+  const iAmount = col("Return unit price");
+  const iReturnType = col("Return Type");
+  const iReturnStatus = col("Return Status");
+
+  const out = [];
+  for (const r of rows.slice(1)) {
+    if (!r || !r[iOrder]) continue;
+    const returnType = r[iReturnType];
+    const returnStatus = r[iReturnStatus];
+    let status, needsPhysicalReturn, solutionPlan;
+    if (returnStatus && returnStatus !== "Completed") {
+      needsPhysicalReturn = false;
+      status = STATUS.NO_ACTION;
+      solutionPlan = "Khiếu nại không thành (" + returnStatus + ")";
+    } else if (returnType === "Return and refund") {
+      needsPhysicalReturn = true;
+      status = STATUS.PENDING;
+      solutionPlan = "Trả hàng & Hoàn tiền";
+    } else {
+      needsPhysicalReturn = false;
+      status = STATUS.NO_ACTION;
+      solutionPlan = returnType || "Hoàn tiền ngay";
+    }
+    out.push({
+      orderCode: String(r[iOrder]).trim().toUpperCase(),
+      sku: r[iSku] || "",
+      productName: r[iProduct] || "",
+      requestDate: toISOTiktok(r[iReqDate]),
+      quantity: toNumber(r[iQty]) || 1,
+      orderType: "Trả hàng hoàn tiền",
+      reason: r[iReason] || "",
+      solutionPlan,
+      amount: toNumberTiktokVND(r[iAmount]),
+      status,
+      needsPhysicalReturn,
+      readyToScan: false,
+      source: "tiktok-return_refund",
+    });
+  }
+  return out;
+}
+
+// Gộp chung file "Đã huỷ" và "Giao không thành công" của TikTok — hai file có
+// cấu trúc giống hệt nhau (sheet "OrderSKUList"), chỉ phân biệt được qua nội
+// dung cột "Shipped Time" của từng dòng, không phải qua tên file/tab.
+function parseTiktokOrderStatus(rows) {
+  const header = rows[0].map((x) => String(x || "").trim());
+  const col = (name) => header.indexOf(name);
+
+  const iOrder = col("Order ID");
+  const iSku = col("Seller SKU");
+  const iProduct = col("Product Name");
+  const iQty = col("Quantity");
+  const iReason = col("Cancel Reason");
+  const iDate = col("Cancelled Time");
+  const iAmount = col("SKU Subtotal After Discount");
+  const iShipped = col("Shipped Time");
+
+  const out = [];
+  for (const r of rows.slice(2)) {
+    if (!r || !r[iOrder]) continue;
+    const hasShipped = r[iShipped] !== null && r[iShipped] !== undefined && String(r[iShipped]).trim() !== "";
+    let status, needsPhysicalReturn, readyToScan, source, orderType, solutionPlan;
+    if (!hasShipped) {
+      status = STATUS.NO_ACTION;
+      needsPhysicalReturn = false;
+      readyToScan = false;
+      source = "tiktok-cancelled";
+      orderType = "Đơn huỷ";
+      solutionPlan = "Không cần xử lý (huỷ trước khi giao)";
+    } else {
+      status = STATUS.PENDING;
+      needsPhysicalReturn = true;
+      readyToScan = false;
+      source = "tiktok-failed_delivery";
+      orderType = "Giao không thành công";
+      solutionPlan = "Theo dõi hàng về (huỷ sau khi giao)";
+    }
+    out.push({
+      orderCode: String(r[iOrder]).trim().toUpperCase(),
+      sku: r[iSku] || "",
+      productName: r[iProduct] || "",
+      requestDate: toISOTiktok(r[iDate]),
+      quantity: toNumber(r[iQty]) || 1,
+      orderType,
+      reason: r[iReason] || "",
+      solutionPlan,
+      amount: toNumber(r[iAmount]),
+      status,
+      needsPhysicalReturn,
+      readyToScan,
+      source,
+    });
+  }
+  return out;
+}
+
 function parseWorkbookRows(rows) {
   if (!rows || !rows.length) return { type: "unknown", records: [] };
   const type = detectFileType(rows[0]);
   if (type === "return_refund") return { type, records: parseReturnRefund(rows) };
   if (type === "cancelled") return { type, records: parseCancelled(rows) };
   if (type === "failed_delivery") return { type, records: parseFailedDelivery(rows) };
+  if (type === "tiktok_return_refund") return { type, records: parseTiktokReturnRefund(rows) };
+  if (type === "tiktok_order_status") return { type, records: parseTiktokOrderStatus(rows) };
   return { type: "unknown", records: [] };
 }
 
@@ -530,7 +665,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
         const { type, records: parsed } = parseWorkbookRows(rows);
 
         if (type === "unknown") {
-          newSummaries.push({ file: file.name, error: "Không nhận diện được định dạng — không giống 3 file Shopee đã biết." });
+          newSummaries.push({ file: file.name, error: "Không nhận diện được định dạng — không giống các file Shopee/TikTok đã biết." });
           continue;
         }
 
@@ -575,9 +710,11 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
   };
 
   const typeLabel = {
-    return_refund: "Trả hàng hoàn tiền",
-    cancelled: "Đơn huỷ",
-    failed_delivery: "Giao không thành công",
+    return_refund: "Trả hàng hoàn tiền (Shopee)",
+    cancelled: "Đơn huỷ (Shopee)",
+    failed_delivery: "Giao không thành công (Shopee)",
+    tiktok_return_refund: "Trả hàng hoàn tiền (TikTok)",
+    tiktok_order_status: "Đơn huỷ / Giao không thành công (TikTok)",
   };
 
   return (
@@ -587,10 +724,10 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           <UploadCloud size={22} color="#F3EFE4" />
         </div>
         <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
-          Nhập file từ Shopee
+          Nhập file từ Shopee & TikTok
         </h2>
         <p className="text-sm mt-1 max-w-md" style={{ color: "#7A7566" }}>
-          Kéo thả hoặc chọn file <b>Order return_refund</b>, <b>Order cancelled</b>, <b>Order failed_delivery</b> tải từ Kênh Người Bán Shopee (.xlsx/.xls). App tự nhận diện loại file và phân loại đơn nào cần theo dõi vật lý.
+          Kéo thả hoặc chọn file <b>Order return_refund</b>, <b>Order cancelled</b>, <b>Order failed_delivery</b> tải từ Kênh Người Bán Shopee, hoặc <b>Đơn trả hàng/hoàn tiền</b>, <b>Đơn huỷ</b>, <b>Giao không thành công</b> tải từ TikTok Shop (.xlsx/.xls). App tự nhận diện loại file và phân loại đơn nào cần theo dõi vật lý.
         </p>
         <label className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ backgroundColor: "#1B1F27" }}>
           {busy ? "Đang xử lý..." : "Chọn file Excel"}
@@ -651,13 +788,23 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           Đã nhập trong hệ thống
         </h3>
         <div className="flex flex-wrap gap-3 text-sm">
-          {["shopee-return_refund", "shopee-cancelled", "shopee-failed_delivery"].map((src) => {
+          {[
+            "shopee-return_refund",
+            "shopee-cancelled",
+            "shopee-failed_delivery",
+            "tiktok-return_refund",
+            "tiktok-cancelled",
+            "tiktok-failed_delivery",
+          ].map((src) => {
             const n = records.filter((r) => r.source === src).length;
             return (
               <div key={src} className="rounded-xl border px-3 py-2" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF", color: "#4A4638" }}>
-                {src === "shopee-return_refund" && "Trả hàng hoàn tiền"}
-                {src === "shopee-cancelled" && "Đơn huỷ"}
-                {src === "shopee-failed_delivery" && "Giao không thành công"}
+                {src === "shopee-return_refund" && "Trả hàng hoàn tiền (Shopee)"}
+                {src === "shopee-cancelled" && "Đơn huỷ (Shopee)"}
+                {src === "shopee-failed_delivery" && "Giao không thành công (Shopee)"}
+                {src === "tiktok-return_refund" && "Trả hàng hoàn tiền (TikTok)"}
+                {src === "tiktok-cancelled" && "Đơn huỷ (TikTok)"}
+                {src === "tiktok-failed_delivery" && "Giao không thành công (TikTok)"}
                 : <b>{n}</b>
               </div>
             );
@@ -706,11 +853,16 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
    Scan View
 --------------------------------------------------------- */
 
+const CAMERA_REGION_ID = "scan-camera-region";
+
 function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
   const [code, setCode] = useState("");
   const [pendingGroup, setPendingGroup] = useState(null);
   const [feed, setFeed] = useState([]);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState("");
   const inputRef = useRef(null);
+  const html5QrcodeRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -720,12 +872,9 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
 
   const pushFeed = (entry) => setFeed((f) => [{ id: uid(), time: new Date().toISOString(), ...entry }, ...f].slice(0, 10));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const raw = code.trim();
-    setCode("");
-    if (!raw) return;
-    const normalized = raw.toUpperCase();
+  const processCode = (raw) => {
+    const normalized = String(raw || "").trim().toUpperCase();
+    if (!normalized) return;
     const matches = records.filter((r) => r.orderCode.toUpperCase() === normalized);
 
     if (matches.length === 0) {
@@ -750,12 +899,64 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
     setPendingGroup(pendingOnes);
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const raw = code.trim();
+    setCode("");
+    if (!raw) return;
+    processCode(raw);
+  };
+
   const chooseCondition = (condition) => {
     onResolveScan(pendingGroup.map((r) => r.id), condition);
     pushFeed({ kind: "success", orderCode: pendingGroup[0].orderCode, condition, count: pendingGroup.length });
     setPendingGroup(null);
     focusInput();
   };
+
+  // Dừng camera ngay khi có kết quả cần chọn tình trạng hàng (chuyển màn hình)
+  useEffect(() => {
+    if (pendingGroup) setCameraActive(false);
+  }, [pendingGroup]);
+
+  // Mở/tắt camera theo cameraActive; luôn dọn camera khi tắt hoặc khi ScanView unmount
+  useEffect(() => {
+    if (!cameraActive) return undefined;
+    setCameraError("");
+    const qr = new Html5Qrcode(CAMERA_REGION_ID);
+    html5QrcodeRef.current = qr;
+
+    qr.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        // Tắt camera ngay để không quét lặp lại cùng 1 mã khi camera vẫn đang chĩa vào tem
+        const instance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        const finish = () => {
+          setCameraActive(false);
+          processCode(decodedText);
+        };
+        if (instance) {
+          instance.stop().then(() => instance.clear?.()).catch(() => {}).finally(finish);
+        } else {
+          finish();
+        }
+      },
+      () => {} // bỏ qua các khung hình chưa đọc được mã, không phải lỗi
+    ).catch(() => {
+      html5QrcodeRef.current = null;
+      setCameraError("Không mở được camera — kiểm tra đã cho phép quyền camera chưa, hoặc thiết bị không có camera.");
+    });
+
+    return () => {
+      const instance = html5QrcodeRef.current;
+      html5QrcodeRef.current = null;
+      if (instance) {
+        instance.stop().then(() => instance.clear?.()).catch(() => {});
+      }
+    };
+  }, [cameraActive]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -773,18 +974,51 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
           Đưa con trỏ vào ô bên dưới rồi quét mã đơn hàng bằng máy quét (USB/Bluetooth). Mã sẽ tự động điền và xác nhận.
         </p>
 
-        {!pendingGroup && (
-          <form onSubmit={handleSubmit} className="w-full max-w-sm mt-4">
-            <input
-              ref={inputRef}
-              autoFocus
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Chờ quét mã đơn hàng..."
-              className="w-full text-center text-lg font-semibold tracking-wide rounded-2xl border-2 px-4 py-3 outline-none"
-              style={{ borderColor: "#2F6F76", fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}
+        {!pendingGroup && !cameraActive && (
+          <div className="w-full max-w-sm mt-4">
+            <form onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Chờ quét mã đơn hàng..."
+                className="w-full text-center text-lg font-semibold tracking-wide rounded-2xl border-2 px-4 py-3 outline-none"
+                style={{ borderColor: "#2F6F76", fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}
+              />
+            </form>
+            <button
+              type="button"
+              onClick={() => setCameraActive(true)}
+              className="mt-3 w-full rounded-2xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+              style={{ backgroundColor: "#F3EFE4", color: "#1B1F27" }}
+            >
+              <Camera size={16} /> Quét bằng camera điện thoại
+            </button>
+          </div>
+        )}
+
+        {!pendingGroup && cameraActive && (
+          <div className="w-full max-w-sm mt-4">
+            <div
+              id={CAMERA_REGION_ID}
+              className="w-full rounded-2xl overflow-hidden"
+              style={{ border: "2px solid #2F6F76", minHeight: 220, backgroundColor: "#1B1F27" }}
             />
-          </form>
+            {cameraError && (
+              <div className="mt-2 text-sm font-medium" style={{ color: "#B5453A" }}>
+                {cameraError}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setCameraActive(false)}
+              className="mt-3 w-full rounded-2xl py-2.5 text-sm font-semibold text-white"
+              style={{ backgroundColor: "#1B1F27" }}
+            >
+              Dừng quét
+            </button>
+          </div>
         )}
 
         {pendingGroup && (
