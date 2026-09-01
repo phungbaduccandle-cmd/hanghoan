@@ -68,3 +68,15 @@ create policy "allow all - hang_hoan_settings" on hang_hoan_settings
 
 create policy "allow all - hang_hoan_file_history" on hang_hoan_file_history
   for all using (true) with check (true);
+
+-- Chống trùng dữ liệu ở tầng database: app dùng upsert(onConflict: 'order_code,sku')
+-- khi thêm/nhập đơn, cần ràng buộc UNIQUE này để onConflict khớp đúng.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'hang_hoan_returns_order_code_sku_key'
+  ) then
+    alter table hang_hoan_returns
+      add constraint hang_hoan_returns_order_code_sku_key unique (order_code, sku);
+  end if;
+end $$;

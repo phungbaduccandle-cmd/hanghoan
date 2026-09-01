@@ -1401,7 +1401,9 @@ export default function App() {
       receivedDate: null,
       itemCondition: null,
     };
-    const { error } = await supabase.from("hang_hoan_returns").insert(recordToRow(newRecord));
+    const { error } = await supabase
+      .from("hang_hoan_returns")
+      .upsert(recordToRow(newRecord), { onConflict: "order_code,sku" });
     if (error) {
       setSaveError("Không lưu được yêu cầu mới: " + error.message);
       return;
@@ -1438,7 +1440,9 @@ export default function App() {
       });
     }
     if (toAdd.length) {
-      const { error } = await supabase.from("hang_hoan_returns").insert(toAdd.map(recordToRow));
+      const { error } = await supabase
+        .from("hang_hoan_returns")
+        .upsert(toAdd.map(recordToRow), { onConflict: "order_code,sku" });
       if (error) {
         setSaveError("Không lưu được dữ liệu nhập: " + error.message);
         return { added: 0, skipped, needsAction: 0, noAction: 0 };
