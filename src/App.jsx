@@ -44,6 +44,7 @@ const STATUS_STYLE = {
 const ORDER_TYPES = ["Trả hàng hoàn tiền", "Bùng đơn", "Đơn huỷ", "Giao không thành công"];
 const ACTUAL_CONDITIONS = ["Hàng lỗi,hỏng", "Thiếu hàng", "Sai hàng", "Khác"];
 const SOLUTION_PLANS = ["Hoàn tiền ngay", "Trả hàng & Hoàn tiền", "Lên đơn ngoài", "Khác"];
+const SHOPS = ["dhhandmade", "dothoductin", "ductincandle", "thaomocnhalanh", "Thuytrang"];
 
 /* ---------------------------------------------------------
    Helpers
@@ -650,9 +651,11 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
   const [busy, setBusy] = useState(false);
   const [summaries, setSummaries] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [selectedShop, setSelectedShop] = useState("");
   const fileRef = useRef(null);
 
   const handleFiles = async (fileList) => {
+    if (!selectedShop) return;
     setBusy(true);
     const newSummaries = [];
     for (const file of fileList) {
@@ -667,6 +670,8 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           newSummaries.push({ file: file.name, error: "Không nhận diện được định dạng — không giống các file Shopee/TikTok đã biết." });
           continue;
         }
+
+        parsed.forEach((p) => { p.shop = selectedShop; });
 
         const result = await onImport(parsed);
 
@@ -728,7 +733,30 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
         <p className="text-sm mt-1 max-w-md" style={{ color: "var(--text-muted)" }}>
           Kéo thả hoặc chọn file <b>Order return_refund</b>, <b>Order cancelled</b>, <b>Order failed_delivery</b> tải từ Kênh Người Bán Shopee, hoặc <b>Đơn trả hàng/hoàn tiền</b>, <b>Đơn huỷ</b>, <b>Giao không thành công</b> tải từ TikTok Shop (.xlsx/.xls). App tự nhận diện loại file và phân loại đơn nào cần theo dõi vật lý.
         </p>
-        <label className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ backgroundColor: "var(--accent)" }}>
+
+        <select
+          value={selectedShop}
+          onChange={(e) => setSelectedShop(e.target.value)}
+          className={inputCls + " mt-4"}
+          style={{ ...inputStyle, width: "auto" }}
+        >
+          <option value="">Chọn shop...</option>
+          {SHOPS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        {!selectedShop && (
+          <div className="mt-2 text-xs font-medium" style={{ color: "var(--loss-text)" }}>
+            Vui lòng chọn shop trước khi tải file.
+          </div>
+        )}
+
+        <label
+          className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+          style={{
+            backgroundColor: "var(--accent)",
+            opacity: selectedShop ? 1 : 0.5,
+            cursor: selectedShop ? "pointer" : "not-allowed",
+          }}
+        >
           {busy ? "Đang xử lý..." : "Chọn file Excel"}
           <input
             ref={fileRef}
@@ -736,7 +764,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
             multiple
             accept=".xlsx,.xls"
             className="hidden"
-            disabled={busy}
+            disabled={busy || !selectedShop}
             onChange={(e) => e.target.files.length && handleFiles(Array.from(e.target.files))}
           />
         </label>
@@ -1213,7 +1241,10 @@ function ListView({ records, overdueDays, onComplete }) {
    Dashboard View
 --------------------------------------------------------- */
 
-function DashboardView({ records, overdueDays, setOverdueDays }) {
+function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
+  const [shopFilter, setShopFilter] = useState("Tất cả shop");
+  const records = shopFilter === "Tất cả shop" ? allRecords : allRecords.filter((r) => r.shop === shopFilter);
+
   const eff = records.map((r) => getEffectiveStatus(r, overdueDays));
   const counts = {
     total: records.length,
@@ -1232,6 +1263,16 @@ function DashboardView({ records, overdueDays, setOverdueDays }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <select
+        value={shopFilter}
+        onChange={(e) => setShopFilter(e.target.value)}
+        className={inputCls}
+        style={{ ...inputStyle, width: "auto" }}
+      >
+        <option>Tất cả shop</option>
+        {SHOPS.map((s) => <option key={s}>{s}</option>)}
+      </select>
+
       <div className="flex flex-wrap gap-3">
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
