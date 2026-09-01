@@ -11,7 +11,6 @@ import {
   X,
   CheckCircle2,
   AlertTriangle,
-  Flame,
   Search,
   Loader2,
   Settings2,
@@ -1496,15 +1495,13 @@ export default function App() {
       <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#1B1F27" }}>
-              <Flame size={18} color="#E8A33D" />
-            </div>
+            <img src="/logo.png" alt="Đức Tín Shop" className="w-9 h-9 rounded-xl object-contain" style={{ backgroundColor: "#1B1F27" }} />
             <div>
               <div className="text-sm font-bold leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
-                DUCTIN CANDLE
+                Đức Tín Shop
               </div>
               <div className="text-xs leading-tight" style={{ color: "#8A8375" }}>
-                Kiểm soát hàng hoàn
+                Vận hành
               </div>
             </div>
           </div>
