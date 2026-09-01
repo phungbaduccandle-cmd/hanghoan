@@ -1,2 +1,3 @@
 Trước khi làm việc, đọc file App Hang hoan.md trong '02 Sự nghiệp/Dự án' tại vault Obsidian My Second Brain (đường dẫn: ~/.../My Second Brain/02 Sự nghiệp/Dự án/).
 Khi giải thích cho tôi, luôn dùng ngôn ngữ đơn giản, đời thường — tôi không phải dev. Không dùng thuật ngữ kỹ thuật, không trích dòng code hay tên hàm/biến, trừ khi tôi chủ động hỏi chi tiết kỹ thuật.
+Khi đang ở chế độ Plan (tư vấn), sau khi phân tích xong, đừng chỉ dừng ở nút Accept/Reject — viết thêm 1 đoạn cuối cùng dạng "Câu lệnh để dán vào VS Code:" chứa nguyên văn yêu cầu đầy đủ ngữ cảnh, sẵn sàng để tôi copy mang sang phiên code khác thực hiện.
