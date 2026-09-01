@@ -1495,9 +1495,8 @@ export default function App() {
       <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Đức Tín Shop" className="w-9 h-9 rounded-xl object-contain" style={{ backgroundColor: "#1B1F27" }} />
             <div>
-              <div className="text-sm font-bold leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
+              <div className="text-sm font-bold leading-tight" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "#1B1F27" }}>
                 Đức Tín Shop
               </div>
               <div className="text-xs leading-tight" style={{ color: "#8A8375" }}>
