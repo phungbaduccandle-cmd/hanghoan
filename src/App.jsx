@@ -34,11 +34,11 @@ const STATUS = {
 };
 
 const STATUS_STYLE = {
-  [STATUS.PENDING]: { bg: "#FBF0DC", fg: "#9A6B12", dot: "#D8922E" },
-  [STATUS.OVERDUE]: { bg: "#F7E4E1", fg: "#96362B", dot: "#B5453A" },
-  [STATUS.RECEIVED]: { bg: "#E1EEEF", fg: "#265257", dot: "#2F6F76" },
-  [STATUS.DONE]: { bg: "#E4EFE7", fg: "#2C5B3D", dot: "#3F7D58" },
-  [STATUS.NO_ACTION]: { bg: "#EDEBE5", fg: "#7A7566", dot: "#B0AA98" },
+  [STATUS.PENDING]: { bg: "var(--accent-soft)", fg: "var(--accent-hover)", dot: "var(--accent)" },
+  [STATUS.OVERDUE]: { bg: "var(--danger-bg)", fg: "var(--loss-text)", dot: "var(--loss-text)" },
+  [STATUS.RECEIVED]: { bg: "var(--panel)", fg: "var(--text)", dot: "var(--border-strong)" },
+  [STATUS.DONE]: { bg: "var(--profit-bg)", fg: "var(--profit-text)", dot: "var(--profit-text)" },
+  [STATUS.NO_ACTION]: { bg: "var(--bg)", fg: "var(--text-muted)", dot: "var(--text-muted)" },
 };
 
 const ORDER_TYPES = ["Trả hàng hoàn tiền", "Bùng đơn", "Đơn huỷ", "Giao không thành công"];
@@ -502,14 +502,14 @@ function StatCard({ label, value, tone, muted }) {
   return (
     <div
       className="flex-1 min-w-[130px] rounded-2xl p-4 border"
-      style={{ backgroundColor: muted ? "#F7F5F0" : "#FFFFFF", borderColor: "#E4DFD4" }}
+      style={{ backgroundColor: muted ? "var(--bg)" : "var(--panel)", borderColor: "var(--border)" }}
     >
-      <div className="text-xs font-medium tracking-wide uppercase" style={{ color: "#8A8375" }}>
+      <div className="text-xs font-medium tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         {label}
       </div>
       <div
         className="mt-2 text-2xl font-bold"
-        style={{ color: s ? s.dot : "#1B1F27", fontFamily: "'Space Grotesk', sans-serif" }}
+        style={{ color: s ? s.dot : "var(--text)", fontFamily: "'Space Grotesk', sans-serif" }}
       >
         {value}
       </div>
@@ -520,7 +520,7 @@ function StatCard({ label, value, tone, muted }) {
 function Field({ label, children }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
-      <span className="font-medium" style={{ color: "#4A4638" }}>
+      <span className="font-medium" style={{ color: "var(--text)" }}>
         {label}
       </span>
       {children}
@@ -530,7 +530,7 @@ function Field({ label, children }) {
 
 const inputCls =
   "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 transition-shadow";
-const inputStyle = { borderColor: "#E4DFD4", backgroundColor: "#FBFAF7" };
+const inputStyle = { borderColor: "var(--border)", backgroundColor: "var(--panel)" };
 
 /* ---------------------------------------------------------
    Add Record Modal
@@ -572,9 +572,9 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(20,18,14,0.45)" }}>
-      <div className="w-full max-w-lg rounded-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "#FFFFFF" }}>
+      <div className="w-full max-w-lg rounded-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "var(--panel)" }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
+          <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "var(--text)" }}>
             Ghi nhận yêu cầu hoàn
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
@@ -623,16 +623,16 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
           </Field>
         </div>
 
-        {error && <div className="mt-3 text-sm font-medium" style={{ color: "#B5453A" }}>{error}</div>}
+        {error && <div className="mt-3 text-sm font-medium" style={{ color: "var(--loss-text)" }}>{error}</div>}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ color: "#4A4638" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ color: "var(--text)" }}>
             Hủy
           </button>
           <button
             onClick={submit}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ backgroundColor: "#1B1F27" }}
+            style={{ backgroundColor: "var(--accent)" }}
           >
             Lưu yêu cầu
           </button>
@@ -718,17 +718,17 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-3xl p-6 border-2 border-dashed flex flex-col items-center text-center" style={{ borderColor: "#2F6F76", backgroundColor: "#FFFFFF" }}>
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: "#1B1F27" }}>
-          <UploadCloud size={22} color="#F3EFE4" />
+      <div className="rounded-3xl p-6 border-2 border-dashed flex flex-col items-center text-center" style={{ borderColor: "var(--accent)", backgroundColor: "var(--panel)" }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: "var(--accent)" }}>
+          <UploadCloud size={22} color="var(--accent-soft)" />
         </div>
-        <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
+        <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "var(--text)" }}>
           Nhập file từ Shopee & TikTok
         </h2>
-        <p className="text-sm mt-1 max-w-md" style={{ color: "#7A7566" }}>
+        <p className="text-sm mt-1 max-w-md" style={{ color: "var(--text-muted)" }}>
           Kéo thả hoặc chọn file <b>Order return_refund</b>, <b>Order cancelled</b>, <b>Order failed_delivery</b> tải từ Kênh Người Bán Shopee, hoặc <b>Đơn trả hàng/hoàn tiền</b>, <b>Đơn huỷ</b>, <b>Giao không thành công</b> tải từ TikTok Shop (.xlsx/.xls). App tự nhận diện loại file và phân loại đơn nào cần theo dõi vật lý.
         </p>
-        <label className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ backgroundColor: "#1B1F27" }}>
+        <label className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ backgroundColor: "var(--accent)" }}>
           {busy ? "Đang xử lý..." : "Chọn file Excel"}
           <input
             ref={fileRef}
@@ -742,9 +742,9 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
         </label>
       </div>
 
-      <div className="rounded-2xl border px-4 py-3 flex gap-2.5" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF" }}>
-        <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#8A8375" }} />
-        <div className="text-sm" style={{ color: "#4A4638" }}>
+      <div className="rounded-2xl border px-4 py-3 flex gap-2.5" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
+        <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+        <div className="text-sm" style={{ color: "var(--text)" }}>
           <b>Nên tải theo thứ tự:</b> Trả hàng hoàn tiền → Giao không thành công → Đơn huỷ (tải cuối để tránh trùng với các đơn huỷ-do-giao-thất-bại đã có trong file Giao không thành công).
           Đơn đã tồn tại (theo mã đơn + SKU) sẽ được bỏ qua, không ghi đè.
         </div>
@@ -752,26 +752,26 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
 
       {summaries.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "#8A8375" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
             Kết quả nhập
           </h3>
           {summaries.map((s, i) => (
-            <div key={i} className="rounded-2xl border px-4 py-3" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF" }}>
+            <div key={i} className="rounded-2xl border px-4 py-3" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
               <div className="flex items-center gap-2 mb-1">
-                <FileSpreadsheet size={15} style={{ color: "#2F6F76" }} />
-                <span className="text-sm font-semibold" style={{ color: "#1B1F27" }}>{s.file}</span>
+                <FileSpreadsheet size={15} style={{ color: "var(--accent)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>{s.file}</span>
               </div>
               {s.error ? (
-                <div className="text-sm flex items-center gap-1.5" style={{ color: "#B5453A" }}>
+                <div className="text-sm flex items-center gap-1.5" style={{ color: "var(--loss-text)" }}>
                   <Ban size={14} /> {s.error}
                 </div>
               ) : (
-                <div className="text-sm" style={{ color: "#4A4638" }}>
+                <div className="text-sm" style={{ color: "var(--text)" }}>
                   Loại: <b>{typeLabel[s.type]}</b> · Đọc được {s.total} dòng → thêm mới <b>{s.added}</b>, bỏ qua (đã có) {s.skipped}.
                   <br />
-                  Trong số thêm mới: <b style={{ color: "#9A6B12" }}>{s.needsAction} đơn cần theo dõi hàng về</b>, {s.noAction} đơn không cần xử lý (đã tự động phân loại).
+                  Trong số thêm mới: <b style={{ color: "var(--accent-hover)" }}>{s.needsAction} đơn cần theo dõi hàng về</b>, {s.noAction} đơn không cần xử lý (đã tự động phân loại).
                   {s.storageWarning && (
-                    <div className="mt-1.5 flex items-center gap-1.5" style={{ color: "#9A6B12" }}>
+                    <div className="mt-1.5 flex items-center gap-1.5" style={{ color: "var(--accent-hover)" }}>
                       <Info size={13} /> {s.storageWarning}
                     </div>
                   )}
@@ -783,7 +783,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
       )}
 
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "#8A8375" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Đã nhập trong hệ thống
         </h3>
         <div className="flex flex-wrap gap-3 text-sm">
@@ -797,7 +797,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           ].map((src) => {
             const n = records.filter((r) => r.source === src).length;
             return (
-              <div key={src} className="rounded-xl border px-3 py-2" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF", color: "#4A4638" }}>
+              <div key={src} className="rounded-xl border px-3 py-2" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)", color: "var(--text)" }}>
                 {src === "shopee-return_refund" && "Trả hàng hoàn tiền (Shopee)"}
                 {src === "shopee-cancelled" && "Đơn huỷ (Shopee)"}
                 {src === "shopee-failed_delivery" && "Giao không thành công (Shopee)"}
@@ -812,22 +812,22 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "#8A8375" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Lịch sử file đã tải
         </h3>
         <div className="flex flex-col gap-2">
           {(!fileHistory || fileHistory.length === 0) && (
-            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "#E4DFD4", color: "#B0AA98" }}>
+            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
               Chưa có file nào được lưu lại.
             </div>
           )}
           {(fileHistory || []).map((h) => (
-            <div key={h.id} className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E4DFD4" }}>
+            <div key={h.id} className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border" style={{ backgroundColor: "var(--panel)", borderColor: "var(--border)" }}>
               <div className="flex items-center gap-3 min-w-0">
-                <FileSpreadsheet size={16} style={{ color: "#2F6F76", flexShrink: 0 }} />
+                <FileSpreadsheet size={16} style={{ color: "var(--accent)", flexShrink: 0 }} />
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate" style={{ color: "#1B1F27" }}>{h.file_name}</div>
-                  <div className="text-xs" style={{ color: "#8A8375" }}>
+                  <div className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{h.file_name}</div>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {typeLabel[h.file_type] || h.file_type} · {h.row_count} dòng · {fmtDate(h.uploaded_at)}
                   </div>
                 </div>
@@ -836,7 +836,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
                 onClick={() => handleDownload(h)}
                 disabled={downloadingId === h.id}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#1B1F27", color: "#F3EFE4" }}
+                style={{ backgroundColor: "var(--accent)", color: "var(--accent-soft)" }}
               >
                 <Download size={13} /> {downloadingId === h.id ? "Đang tải..." : "Tải lại"}
               </button>
@@ -961,15 +961,15 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
     <div className="flex flex-col gap-5">
       <div
         className="rounded-3xl p-6 border-2 border-dashed flex flex-col items-center text-center"
-        style={{ borderColor: pendingGroup ? "#D8922E" : "#2F6F76", backgroundColor: "#FFFFFF" }}
+        style={{ borderColor: pendingGroup ? "var(--accent)" : "var(--accent)", backgroundColor: "var(--panel)" }}
       >
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: "#1B1F27" }}>
-          <ScanLine size={22} color="#F3EFE4" />
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: "var(--accent)" }}>
+          <ScanLine size={22} color="var(--accent-soft)" />
         </div>
-        <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B1F27" }}>
+        <h2 className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: "var(--text)" }}>
           Quét nhận hàng
         </h2>
-        <p className="text-sm mt-1 max-w-sm" style={{ color: "#7A7566" }}>
+        <p className="text-sm mt-1 max-w-sm" style={{ color: "var(--text-muted)" }}>
           Đưa con trỏ vào ô bên dưới rồi quét mã đơn hàng bằng máy quét (USB/Bluetooth). Mã sẽ tự động điền và xác nhận.
         </p>
 
@@ -983,14 +983,14 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Chờ quét mã đơn hàng..."
                 className="w-full text-center text-lg font-semibold tracking-wide rounded-2xl border-2 px-4 py-3 outline-none"
-                style={{ borderColor: "#2F6F76", fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}
+                style={{ borderColor: "var(--accent)", fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}
               />
             </form>
             <button
               type="button"
               onClick={() => setCameraActive(true)}
               className="mt-3 w-full rounded-2xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
-              style={{ backgroundColor: "#F3EFE4", color: "#1B1F27" }}
+              style={{ backgroundColor: "var(--accent-soft)", color: "var(--text)" }}
             >
               <Camera size={16} /> Quét bằng camera điện thoại
             </button>
@@ -1002,10 +1002,10 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
             <div
               id={CAMERA_REGION_ID}
               className="w-full rounded-2xl overflow-hidden"
-              style={{ border: "2px solid #2F6F76", minHeight: 220, backgroundColor: "#1B1F27" }}
+              style={{ border: "2px solid var(--accent)", minHeight: 220, backgroundColor: "var(--text)" }}
             />
             {cameraError && (
-              <div className="mt-2 text-sm font-medium" style={{ color: "#B5453A" }}>
+              <div className="mt-2 text-sm font-medium" style={{ color: "var(--loss-text)" }}>
                 {cameraError}
               </div>
             )}
@@ -1013,7 +1013,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
               type="button"
               onClick={() => setCameraActive(false)}
               className="mt-3 w-full rounded-2xl py-2.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: "#1B1F27" }}
+              style={{ backgroundColor: "var(--accent)" }}
             >
               Dừng quét
             </button>
@@ -1024,7 +1024,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
           <div className="w-full max-w-sm mt-4">
             <div
               className="rounded-2xl px-4 py-3 mb-3 text-sm font-semibold"
-              style={{ backgroundColor: "#FBF0DC", color: "#9A6B12" }}
+              style={{ backgroundColor: "var(--accent-soft)", color: "var(--accent-hover)" }}
             >
               <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{pendingGroup[0].orderCode}</div>
               <div className="font-normal mt-1 text-xs">
@@ -1032,26 +1032,26 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
                 {pendingGroup[0].readyToScan && " · Shopee xác nhận đã giao hoàn về"}
               </div>
             </div>
-            <p className="text-sm font-medium mb-2" style={{ color: "#4A4638" }}>
+            <p className="text-sm font-medium mb-2" style={{ color: "var(--text)" }}>
               Chọn tình trạng hàng vừa mở ra:
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => chooseCondition("Dùng được")}
                 className="flex-1 rounded-2xl py-3 font-semibold text-white flex items-center justify-center gap-2"
-                style={{ backgroundColor: "#3F7D58" }}
+                style={{ backgroundColor: "var(--profit-text)" }}
               >
                 <CheckCircle2 size={18} /> Dùng được
               </button>
               <button
                 onClick={() => chooseCondition("Hỏng")}
                 className="flex-1 rounded-2xl py-3 font-semibold text-white flex items-center justify-center gap-2"
-                style={{ backgroundColor: "#B5453A" }}
+                style={{ backgroundColor: "var(--loss-text)" }}
               >
                 <AlertTriangle size={18} /> Hỏng
               </button>
             </div>
-            <button onClick={() => { setPendingGroup(null); focusInput(); }} className="mt-3 text-sm font-medium underline" style={{ color: "#7A7566" }}>
+            <button onClick={() => { setPendingGroup(null); focusInput(); }} className="mt-3 text-sm font-medium underline" style={{ color: "var(--text-muted)" }}>
               Hủy, quét nhầm
             </button>
           </div>
@@ -1059,12 +1059,12 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "#8A8375" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Vừa quét
         </h3>
         <div className="flex flex-col gap-2">
           {feed.length === 0 && (
-            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "#E4DFD4", color: "#B0AA98" }}>
+            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
               Chưa có lượt quét nào.
             </div>
           )}
@@ -1072,21 +1072,21 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
             <div
               key={f.id}
               className="rounded-2xl px-4 py-3 flex items-center justify-between border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E4DFD4" }}
+              style={{ backgroundColor: "var(--panel)", borderColor: "var(--border)" }}
             >
               <div className="flex items-center gap-3">
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{
                     backgroundColor:
-                      f.kind === "success" ? "#3F7D58" : f.kind === "notfound" ? "#B5453A" : "#D8922E",
+                      f.kind === "success" ? "var(--profit-text)" : f.kind === "notfound" ? "var(--loss-text)" : "var(--accent)",
                   }}
                 />
                 <div>
-                  <div className="text-sm font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}>
+                  <div className="text-sm font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
                     {f.orderCode}
                   </div>
-                  <div className="text-xs" style={{ color: "#8A8375" }}>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {f.kind === "success" && `Đã nhận · ${f.condition}${f.count > 1 ? ` · ${f.count} dòng` : ""}`}
                     {f.kind === "notfound" && "Không tìm thấy trong hệ thống"}
                     {f.kind === "already" && `Đã quét trước đó lúc ${fmtDate(f.record.receivedDate)}`}
@@ -1099,7 +1099,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
                 <button
                   onClick={() => onQuickAdd(f.orderCode)}
                   className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: "#1B1F27", color: "#F3EFE4" }}
+                  style={{ backgroundColor: "var(--accent)", color: "var(--accent-soft)" }}
                 >
                   + Thêm mới
                 </button>
@@ -1136,7 +1136,7 @@ function ListView({ records, overdueDays, onComplete }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#B0AA98" }} />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -1151,12 +1151,12 @@ function ListView({ records, overdueDays, onComplete }) {
         </select>
       </div>
 
-      <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF" }}>
+      <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
         <table className="w-full text-sm min-w-[950px]">
           <thead>
-            <tr className="text-left" style={{ backgroundColor: "#F6F3EC" }}>
+            <tr className="text-left" style={{ backgroundColor: "var(--bg)" }}>
               {["Mã đơn", "SKU", "Ngày yêu cầu", "Loại tình huống", "Phương án", "Số tiền", "Trạng thái", "Ngày nhận", "Tình trạng", ""].map((h) => (
-                <th key={h} className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide" style={{ color: "#8A8375" }}>
+                <th key={h} className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                   {h}
                 </th>
               ))}
@@ -1166,27 +1166,27 @@ function ListView({ records, overdueDays, onComplete }) {
             {filtered.map((r) => {
               const eff = getEffectiveStatus(r, overdueDays);
               return (
-                <tr key={r.id} className="border-t" style={{ borderColor: "#EFEBE1" }}>
-                  <td className="px-3 py-2.5 font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}>
+                <tr key={r.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                  <td className="px-3 py-2.5 font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
                     {r.orderCode}
                     {r.readyToScan && eff === STATUS.PENDING && (
-                      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ backgroundColor: "#3F7D58" }} title="Shopee xác nhận đã giao hoàn về" />
+                      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ backgroundColor: "var(--profit-text)" }} title="Shopee xác nhận đã giao hoàn về" />
                     )}
                   </td>
-                  <td className="px-3 py-2.5" style={{ color: "#4A4638" }}>{r.sku || "—"}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "#4A4638" }}>{fmtDate(r.requestDate)}</td>
-                  <td className="px-3 py-2.5" style={{ color: "#4A4638" }}>{r.orderType}</td>
-                  <td className="px-3 py-2.5" style={{ color: "#4A4638" }}>{r.solutionPlan}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "#4A4638" }}>{fmtMoney(r.amount)}</td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.sku || "—"}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{fmtDate(r.requestDate)}</td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.orderType}</td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.solutionPlan}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{fmtMoney(r.amount)}</td>
                   <td className="px-3 py-2.5"><StatusBadge status={eff} /></td>
-                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "#4A4638" }}>{fmtDate(r.receivedDate)}</td>
-                  <td className="px-3 py-2.5" style={{ color: "#4A4638" }}>{r.itemCondition || "—"}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{fmtDate(r.receivedDate)}</td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.itemCondition || "—"}</td>
                   <td className="px-3 py-2.5">
                     {eff === STATUS.RECEIVED && (
                       <button
                         onClick={() => onComplete(r.id)}
                         className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                        style={{ backgroundColor: "#E4EFE7", color: "#2C5B3D" }}
+                        style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
                       >
                         Đánh dấu xong
                       </button>
@@ -1197,7 +1197,7 @@ function ListView({ records, overdueDays, onComplete }) {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center" style={{ color: "#B0AA98" }}>
+                <td colSpan={10} className="px-3 py-8 text-center" style={{ color: "var(--text-muted)" }}>
                   Không có bản ghi nào khớp.
                 </td>
               </tr>
@@ -1242,26 +1242,26 @@ function DashboardView({ records, overdueDays, setOverdueDays }) {
       </div>
 
       {readyCount > 0 && (
-        <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "#CFE4CB", backgroundColor: "#EFF7EC" }}>
-          <CheckCircle2 size={18} style={{ color: "#3F7D58" }} />
-          <div className="text-sm" style={{ color: "#2C5B3D" }}>
+        <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "var(--border)", backgroundColor: "var(--profit-bg)" }}>
+          <CheckCircle2 size={18} style={{ color: "var(--profit-text)" }} />
+          <div className="text-sm" style={{ color: "var(--profit-text)" }}>
             <b>{readyCount} đơn</b> Shopee đã xác nhận giao hoàn về — có thể đã có hàng ở kho, ưu tiên quét trước.
           </div>
         </div>
       )}
 
       {counts.overdue > 0 && (
-        <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "#F0C9C3", backgroundColor: "#FBF0EE" }}>
-          <AlertTriangle size={18} style={{ color: "#B5453A" }} />
-          <div className="text-sm" style={{ color: "#96362B" }}>
+        <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "var(--border)", backgroundColor: "var(--danger-bg)" }}>
+          <AlertTriangle size={18} style={{ color: "var(--loss-text)" }} />
+          <div className="text-sm" style={{ color: "var(--loss-text)" }}>
             <b>{counts.overdue} đơn</b> quá hạn hoặc thất lạc, tổng giá trị coi như mất khoảng <b>{fmtMoney(lostValue)}</b>.
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-sm rounded-2xl border px-4 py-3 w-fit" style={{ borderColor: "#E4DFD4", backgroundColor: "#FFFFFF" }}>
-        <Settings2 size={16} style={{ color: "#8A8375" }} />
-        <span style={{ color: "#4A4638" }}>Ngưỡng quá hạn:</span>
+      <div className="flex items-center gap-2 text-sm rounded-2xl border px-4 py-3 w-fit" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
+        <Settings2 size={16} style={{ color: "var(--text-muted)" }} />
+        <span style={{ color: "var(--text)" }}>Ngưỡng quá hạn:</span>
         <input
           type="number"
           min="1"
@@ -1270,26 +1270,26 @@ function DashboardView({ records, overdueDays, setOverdueDays }) {
           className="w-16 rounded-lg border px-2 py-1 text-center"
           style={inputStyle}
         />
-        <span style={{ color: "#4A4638" }}>ngày kể từ ngày yêu cầu</span>
+        <span style={{ color: "var(--text)" }}>ngày kể từ ngày yêu cầu</span>
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "#8A8375" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Yêu cầu gần đây
         </h3>
         <div className="flex flex-col gap-2">
           {recent.length === 0 && (
-            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "#E4DFD4", color: "#B0AA98" }}>
+            <div className="text-sm rounded-2xl border border-dashed p-4 text-center" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
               Chưa có dữ liệu. Bấm "Thêm yêu cầu" hoặc vào "Nhập từ Shopee" để bắt đầu.
             </div>
           )}
           {recent.map((r) => (
-            <div key={r.id} className="rounded-2xl px-4 py-3 flex items-center justify-between border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E4DFD4" }}>
+            <div key={r.id} className="rounded-2xl px-4 py-3 flex items-center justify-between border" style={{ backgroundColor: "var(--panel)", borderColor: "var(--border)" }}>
               <div>
-                <div className="text-sm font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#1B1F27" }}>
-                  {r.orderCode} <span style={{ color: "#B0AA98", fontFamily: "inherit" }}>· {r.sku}</span>
+                <div className="text-sm font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
+                  {r.orderCode} <span style={{ color: "var(--text-muted)", fontFamily: "inherit" }}>· {r.sku}</span>
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: "#8A8375" }}>
+                <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {r.reason || "Không rõ lý do"} · {fmtDate(r.requestDate)}
                 </div>
               </div>
@@ -1486,20 +1486,38 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen w-full" style={{ backgroundColor: "#F1EEE7", fontFamily: "'Manrope', sans-serif" }}>
+    <div className="min-h-screen w-full" style={{ backgroundColor: "var(--bg)", fontFamily: "'Manrope', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(47,111,118,0.18); border-color: #2F6F76 !important; }
+        :root {
+          --bg: #f5e9d3;
+          --panel: #fffdf8;
+          --border: #e8d7b4;
+          --border-strong: #dcc292;
+          --text: #3a2e22;
+          --text-muted: #8a7a63;
+          --accent: #d9822b;
+          --accent-hover: #c06f1e;
+          --accent-soft: #f3ddbc;
+          --profit-bg: #e2f3e5;
+          --profit-text: #1f7a3d;
+          --loss-text: #c0392b;
+          --danger-bg: #fbeaea;
+        }
+        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(217,130,43,0.18); border-color: var(--accent) !important; }
       `}</style>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div
+        className="sticky top-0 z-10 px-4 py-4"
+        style={{ backgroundColor: "var(--panel)", borderBottom: "1px solid var(--border)" }}
+      >
+        <div className="max-w-4xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5">
             <div>
-              <div className="text-sm font-bold leading-tight" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "#1B1F27" }}>
+              <div className="text-sm font-bold leading-tight" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "var(--text)" }}>
                 Đức Tín Shop
               </div>
-              <div className="text-xs leading-tight" style={{ color: "#8A8375" }}>
+              <div className="text-xs leading-tight" style={{ color: "var(--text-muted)" }}>
                 Vận hành
               </div>
             </div>
@@ -1507,13 +1525,15 @@ export default function App() {
           <button
             onClick={() => { setPrefillCode(""); setShowAdd(true); }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ backgroundColor: "#1B1F27" }}
+            style={{ backgroundColor: "var(--accent)" }}
           >
             <Plus size={16} /> Thêm yêu cầu
           </button>
         </div>
+      </div>
 
-        <div className="flex gap-1.5 p-1 rounded-2xl w-fit flex-wrap" style={{ backgroundColor: "#E9E4D8" }}>
+      <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5">
+        <div className="flex gap-1.5 p-1 rounded-2xl w-fit flex-wrap" style={{ backgroundColor: "var(--bg)" }}>
           {NAV.map((n) => {
             const Icon = n.icon;
             const active = view === n.key;
@@ -1523,8 +1543,8 @@ export default function App() {
                 onClick={() => setView(n.key)}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-colors"
                 style={{
-                  backgroundColor: active ? "#FFFFFF" : "transparent",
-                  color: active ? "#1B1F27" : "#8A8375",
+                  backgroundColor: active ? "var(--panel)" : "transparent",
+                  color: active ? "var(--text)" : "var(--text-muted)",
                   boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
                 }}
               >
@@ -1535,13 +1555,13 @@ export default function App() {
         </div>
 
         {saveError && (
-          <div className="text-sm rounded-xl px-3 py-2" style={{ backgroundColor: "#F7E4E1", color: "#96362B" }}>
+          <div className="text-sm rounded-xl px-3 py-2" style={{ backgroundColor: "var(--danger-bg)", color: "var(--loss-text)" }}>
             {saveError}
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20" style={{ color: "#8A8375" }}>
+          <div className="flex items-center justify-center py-20" style={{ color: "var(--text-muted)" }}>
             <Loader2 className="animate-spin mr-2" size={18} /> Đang tải dữ liệu...
           </div>
         ) : (
