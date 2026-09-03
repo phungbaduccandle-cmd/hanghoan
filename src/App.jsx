@@ -1142,7 +1142,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
    List View
 --------------------------------------------------------- */
 
-function ListView({ records, overdueDays, onComplete }) {
+function ListView({ records, overdueDays, onComplete, onUndo }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả");
 
@@ -1209,13 +1209,26 @@ function ListView({ records, overdueDays, onComplete }) {
                   <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.itemCondition || "—"}</td>
                   <td className="px-3 py-2.5">
                     {eff === STATUS.RECEIVED && (
-                      <button
-                        onClick={() => onComplete(r.id)}
-                        className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                        style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
-                      >
-                        Đánh dấu xong
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => onComplete(r.id)}
+                          className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                          style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
+                        >
+                          Đánh dấu xong
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
+                              onUndo(r.id);
+                            }
+                          }}
+                          className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                          style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
+                        >
+                          Huỷ quét
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -1585,6 +1598,21 @@ export default function App() {
     setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, status: STATUS.DONE } : r)));
   };
 
+  const undoReceive = async (id) => {
+    const { error } = await supabase
+      .from("hang_hoan_returns")
+      .update({ status: STATUS.PENDING, received_date: null, item_condition: null })
+      .eq("id", id);
+    if (error) {
+      setSaveError("Không cập nhật được: " + error.message);
+      return;
+    }
+    setSaveError("");
+    setRecords((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: STATUS.PENDING, receivedDate: null, itemCondition: null } : r))
+    );
+  };
+
   const NAV = [
     { key: "dashboard", label: "Tổng quan", icon: LayoutGrid },
     { key: "scan", label: "Quét nhận hàng", icon: ScanLine },
@@ -1693,7 +1721,7 @@ export default function App() {
                 onDownloadFile={downloadFile}
               />
             )}
-            {view === "list" && <ListView records={records} overdueDays={overdueDays} onComplete={markComplete} />}
+            {view === "list" && <ListView records={records} overdueDays={overdueDays} onComplete={markComplete} onUndo={undoReceive} />}
           </>
         )}
       </div>
