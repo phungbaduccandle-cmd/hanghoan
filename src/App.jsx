@@ -887,7 +887,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
 
 const CAMERA_REGION_ID = "scan-camera-region";
 
-function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, onQuickAdd }) {
+function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, onQuickAdd, onUndo, onDelete }) {
   const [code, setCode] = useState("");
   const [pendingGroup, setPendingGroup] = useState(null);
   const [pendingNewCode, setPendingNewCode] = useState(null);
@@ -896,6 +896,29 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
   const [cameraError, setCameraError] = useState("");
   const inputRef = useRef(null);
   const html5QrcodeRef = useRef(null);
+  const seededRef = useRef(false);
+
+  // Giữ lại lịch sử "Vừa quét" qua reload: lần đầu records (load từ Supabase)
+  // có dữ liệu thì dựng feed từ các bản ghi đã nhận, chỉ làm đúng 1 lần —
+  // không ghi đè các lượt quét mới phát sinh sau đó trong phiên.
+  useEffect(() => {
+    if (seededRef.current || records.length === 0) return;
+    seededRef.current = true;
+    const seeded = records
+      .filter((r) => r.receivedDate)
+      .sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate))
+      .slice(0, 10)
+      .map((r) => ({
+        id: r.id,
+        time: r.receivedDate,
+        kind: "success",
+        orderCode: r.orderCode,
+        condition: r.itemCondition,
+        count: 1,
+        source: r.source,
+      }));
+    setFeed(seeded);
+  }, [records]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -940,16 +963,29 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
     processCode(raw);
   };
 
-  const chooseCondition = (condition) => {
+  const chooseCondition = async (condition) => {
     if (pendingNewCode) {
-      onReceivePlaceholder(pendingNewCode, condition);
-      pushFeed({ kind: "success", orderCode: pendingNewCode, condition, count: 1 });
+      const newId = await onReceivePlaceholder(pendingNewCode, condition);
+      pushFeed({
+        kind: "success",
+        orderCode: pendingNewCode,
+        condition,
+        count: 1,
+        ...(newId ? { id: newId, source: "scan-placeholder" } : {}),
+      });
       setPendingNewCode(null);
       focusInput();
       return;
     }
     onResolveScan(pendingGroup.map((r) => r.id), condition);
-    pushFeed({ kind: "success", orderCode: pendingGroup[0].orderCode, condition, count: pendingGroup.length });
+    pushFeed({
+      kind: "success",
+      orderCode: pendingGroup[0].orderCode,
+      condition,
+      count: pendingGroup.length,
+      id: pendingGroup[0].id,
+      source: pendingGroup[0].source,
+    });
     setPendingGroup(null);
     focusInput();
   };
@@ -1164,6 +1200,35 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
                   >
                     + Thêm mới
                   </button>
+                </div>
+              )}
+              {f.kind === "success" && f.id && (
+                <div className="flex-shrink-0">
+                  {f.source === "manual" || f.source === "scan-placeholder" ? (
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Xoá hẳn dòng " + f.orderCode + "? Không thể hoàn tác.")) {
+                          onDelete(f.id);
+                        }
+                      }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap"
+                      style={{ backgroundColor: "var(--danger-bg)", color: "var(--loss-text)" }}
+                    >
+                      Xoá
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Huỷ quét đơn " + f.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
+                          onUndo(f.id);
+                        }
+                      }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap"
+                      style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
+                    >
+                      Huỷ quét
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1765,10 +1830,11 @@ export default function App() {
       .upsert(recordToRow(newRecord), { onConflict: "order_code,sku" });
     if (error) {
       setSaveError("Không lưu được: " + error.message);
-      return;
+      return null;
     }
     setSaveError("");
     setRecords((prev) => [...prev, newRecord]);
+    return newRecord.id;
   };
 
   const markComplete = async (id) => {
@@ -1904,6 +1970,8 @@ export default function App() {
                 onResolveScan={resolveScan}
                 onReceivePlaceholder={receivePlaceholder}
                 onQuickAdd={(code) => { setPrefillCode(code); setShowAdd(true); }}
+                onUndo={undoReceive}
+                onDelete={deleteRecord}
               />
             )}
             {view === "import" && (
