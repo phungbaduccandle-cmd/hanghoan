@@ -691,6 +691,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           total: parsed.length,
           added: result.added,
           updated: result.updated,
+          matchedScan: result.matchedScan,
           skipped: result.skipped,
           needsAction: result.needsAction,
           noAction: result.noAction,
@@ -794,6 +795,12 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
               ) : (
                 <div className="text-sm" style={{ color: "var(--text)" }}>
                   Loại: <b>{typeLabel[s.type]}</b> · Đọc được {s.total} dòng → thêm mới <b>{s.added}</b>, cập nhật lại <b>{s.updated}</b> đơn đã có, bỏ qua (trùng dòng trong file) {s.skipped}.
+                  {s.matchedScan > 0 && (
+                    <>
+                      <br />
+                      Trong đó <b style={{ color: "var(--profit-text)" }}>{s.matchedScan} dòng</b> khớp với đơn đã "Xác nhận đã nhận" khi quét trước — giữ nguyên trạng thái Đã nhận, chỉ lấp thêm dữ liệu từ file.
+                    </>
+                  )}
                   <br />
                   Trong số thêm mới: <b style={{ color: "var(--accent-hover)" }}>{s.needsAction} đơn cần theo dõi hàng về</b>, {s.noAction} đơn không cần xử lý (đã tự động phân loại).
                   {s.storageWarning && (
@@ -880,9 +887,10 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
 
 const CAMERA_REGION_ID = "scan-camera-region";
 
-function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
+function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, onQuickAdd }) {
   const [code, setCode] = useState("");
   const [pendingGroup, setPendingGroup] = useState(null);
+  const [pendingNewCode, setPendingNewCode] = useState(null);
   const [feed, setFeed] = useState([]);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -891,7 +899,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, [pendingGroup]);
+  }, [pendingGroup, pendingNewCode]);
 
   const focusInput = () => setTimeout(() => inputRef.current?.focus(), 30);
 
@@ -933,6 +941,13 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
   };
 
   const chooseCondition = (condition) => {
+    if (pendingNewCode) {
+      onReceivePlaceholder(pendingNewCode, condition);
+      pushFeed({ kind: "success", orderCode: pendingNewCode, condition, count: 1 });
+      setPendingNewCode(null);
+      focusInput();
+      return;
+    }
     onResolveScan(pendingGroup.map((r) => r.id), condition);
     pushFeed({ kind: "success", orderCode: pendingGroup[0].orderCode, condition, count: pendingGroup.length });
     setPendingGroup(null);
@@ -941,8 +956,8 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
 
   // Dừng camera ngay khi có kết quả cần chọn tình trạng hàng (chuyển màn hình)
   useEffect(() => {
-    if (pendingGroup) setCameraActive(false);
-  }, [pendingGroup]);
+    if (pendingGroup || pendingNewCode) setCameraActive(false);
+  }, [pendingGroup, pendingNewCode]);
 
   // Mở/tắt camera theo cameraActive; luôn dọn camera khi tắt hoặc khi ScanView unmount
   useEffect(() => {
@@ -999,7 +1014,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
           Đưa con trỏ vào ô bên dưới rồi quét mã đơn hàng bằng máy quét (USB/Bluetooth). Mã sẽ tự động điền và xác nhận.
         </p>
 
-        {!pendingGroup && !cameraActive && (
+        {!pendingGroup && !pendingNewCode && !cameraActive && (
           <div className="w-full max-w-sm mt-4">
             <form onSubmit={handleSubmit}>
               <input
@@ -1023,7 +1038,7 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
           </div>
         )}
 
-        {!pendingGroup && cameraActive && (
+        {!pendingGroup && !pendingNewCode && cameraActive && (
           <div className="w-full max-w-sm mt-4">
             <div
               id={CAMERA_REGION_ID}
@@ -1046,16 +1061,24 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
           </div>
         )}
 
-        {pendingGroup && (
+        {(pendingGroup || pendingNewCode) && (
           <div className="w-full max-w-sm mt-4">
             <div
               className="rounded-2xl px-4 py-3 mb-3 text-sm font-semibold"
               style={{ backgroundColor: "var(--accent-soft)", color: "var(--accent-hover)" }}
             >
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{pendingGroup[0].orderCode}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                {pendingGroup ? pendingGroup[0].orderCode : pendingNewCode}
+              </div>
               <div className="font-normal mt-1 text-xs">
-                {pendingGroup.map((p) => p.sku || "chưa có SKU").join(", ")}
-                {pendingGroup[0].readyToScan && " · Shopee xác nhận đã giao hoàn về"}
+                {pendingGroup ? (
+                  <>
+                    {pendingGroup.map((p) => p.sku || "chưa có SKU").join(", ")}
+                    {pendingGroup[0].readyToScan && " · Shopee xác nhận đã giao hoàn về"}
+                  </>
+                ) : (
+                  "Đơn chưa có trong hệ thống — sẽ tạo mới, dữ liệu chi tiết tự khớp khi nhập file hoàn sau."
+                )}
               </div>
             </div>
             <p className="text-sm font-medium mb-2" style={{ color: "var(--text)" }}>
@@ -1077,7 +1100,11 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
                 <AlertTriangle size={18} /> Hỏng
               </button>
             </div>
-            <button onClick={() => { setPendingGroup(null); focusInput(); }} className="mt-3 text-sm font-medium underline" style={{ color: "var(--text-muted)" }}>
+            <button
+              onClick={() => { setPendingGroup(null); setPendingNewCode(null); focusInput(); }}
+              className="mt-3 text-sm font-medium underline"
+              style={{ color: "var(--text-muted)" }}
+            >
               Hủy, quét nhầm
             </button>
           </div>
@@ -1122,13 +1149,22 @@ function ScanView({ records, overdueDays, onResolveScan, onQuickAdd }) {
                 </div>
               </div>
               {f.kind === "notfound" && (
-                <button
-                  onClick={() => onQuickAdd(f.orderCode)}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: "var(--accent)", color: "var(--accent-soft)" }}
-                >
-                  + Thêm mới
-                </button>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => setPendingNewCode(f.orderCode)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap"
+                    style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
+                  >
+                    Xác nhận đã nhận
+                  </button>
+                  <button
+                    onClick={() => onQuickAdd(f.orderCode)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap"
+                    style={{ backgroundColor: "var(--accent)", color: "var(--accent-soft)" }}
+                  >
+                    + Thêm mới
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -1471,16 +1507,34 @@ export default function App() {
   // quét trước khi có file) thì cập nhật lại dữ liệu chuẩn từ file, nhưng
   // KHÔNG đụng tới status/received_date/item_condition — những trường đó chỉ
   // đổi qua luồng quét/nhận hàng thật, file không biết việc đó đã xảy ra.
+  //
+  // Riêng: nếu order_code khớp với 1 dòng "placeholder" (tạo qua nút "Xác
+  // nhận đã nhận" trong ScanView khi quét trước khi có file — sku=null,
+  // status=RECEIVED, source="scan-placeholder"), dòng đầu tiên trong file có
+  // cùng order_code sẽ được dùng để LẤP vào đúng dòng placeholder đó (giữ
+  // nguyên status/received_date/item_condition/id); các dòng SKU khác cùng
+  // order_code (đơn nhiều SKU) được thêm mới nhưng copy luôn
+  // status/received_date/item_condition từ placeholder, coi như cả gói đã
+  // về kho cùng lúc.
   const importRecords = async (parsed) => {
     const normKey = (orderCode, sku) => (orderCode + "::" + (sku || "")).toUpperCase();
-    const existingByKey = new Map(
-      recordsRef.current.map((r) => [normKey(r.orderCode, r.sku), r])
-    );
+    const current = recordsRef.current;
+    const existingByKey = new Map(current.map((r) => [normKey(r.orderCode, r.sku), r]));
+
+    const placeholderByOrderCode = new Map();
+    for (const r of current) {
+      if (r.source === "scan-placeholder" && !r.sku && r.status === STATUS.RECEIVED) {
+        const ock = r.orderCode.toUpperCase();
+        if (!placeholderByOrderCode.has(ock)) placeholderByOrderCode.set(ock, r);
+      }
+    }
+    const filledPlaceholderOrderCodes = new Set();
     const claimedKeys = new Set();
 
-    let added = 0, updated = 0, skipped = 0, needsAction = 0, noAction = 0;
+    let added = 0, updated = 0, skipped = 0, needsAction = 0, noAction = 0, matchedScan = 0;
     const toAdd = [];
     const toUpdate = [];
+    const toFillPlaceholder = [];
 
     for (const p of parsed) {
       const key = normKey(p.orderCode, p.sku);
@@ -1489,6 +1543,48 @@ export default function App() {
         continue;
       }
       claimedKeys.add(key);
+
+      const orderKey = p.orderCode.toUpperCase();
+      const placeholder = placeholderByOrderCode.get(orderKey);
+
+      if (placeholder && !filledPlaceholderOrderCodes.has(orderKey)) {
+        // Dòng đầu tiên của order_code này -> lấp vào đúng dòng placeholder đã quét
+        filledPlaceholderOrderCodes.add(orderKey);
+        matchedScan++;
+        toFillPlaceholder.push({
+          id: placeholder.id,
+          order_code: p.orderCode,
+          status: placeholder.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
+          received_date: placeholder.receivedDate,
+          item_condition: placeholder.itemCondition,
+          sku: p.sku || null,
+          product_name: p.productName || null,
+          request_date: p.requestDate || null,
+          quantity: p.quantity ?? null,
+          order_type: p.orderType || null,
+          reason: p.reason || null,
+          solution_plan: p.solutionPlan || null,
+          amount: p.amount ?? null,
+          source: p.source || null,
+          month: monthLabel(p.requestDate) || null,
+        });
+        continue;
+      }
+
+      if (placeholder && filledPlaceholderOrderCodes.has(orderKey)) {
+        // SKU khác của cùng đơn đã có placeholder -> thêm mới, coi như đã nhận cùng lúc
+        matchedScan++;
+        added++;
+        toAdd.push({
+          id: uid(),
+          ...p,
+          month: monthLabel(p.requestDate),
+          status: placeholder.status,
+          receivedDate: placeholder.receivedDate,
+          itemCondition: placeholder.itemCondition,
+        });
+        continue;
+      }
 
       const existing = existingByKey.get(key);
       if (existing) {
@@ -1529,7 +1625,7 @@ export default function App() {
         .upsert(toAdd.map(recordToRow), { onConflict: "order_code,sku" });
       if (error) {
         setSaveError("Không lưu được dữ liệu nhập: " + error.message);
-        return { added: 0, updated: 0, skipped, needsAction: 0, noAction: 0 };
+        return { added: 0, updated: 0, skipped, needsAction: 0, noAction: 0, matchedScan: 0 };
       }
     }
 
@@ -1539,7 +1635,21 @@ export default function App() {
         .upsert(toUpdate, { onConflict: "order_code,sku" });
       if (error) {
         setSaveError("Không cập nhật được dữ liệu cho các đơn đã có: " + error.message);
-        return { added, updated: 0, skipped, needsAction, noAction };
+        return { added, updated: 0, skipped, needsAction, noAction, matchedScan: 0 };
+      }
+    }
+
+    if (toFillPlaceholder.length) {
+      // onConflict theo id (không phải order_code,sku): dòng placeholder có sku
+      // NULL, mà NULL không bao giờ được Postgres coi là trùng khi so khớp unique
+      // constraint (order_code, sku) — nên phải khớp thẳng theo khoá chính id để
+      // chắc chắn update đúng dòng, kể cả khi sku đổi từ NULL sang giá trị thật.
+      const { error } = await supabase
+        .from("hang_hoan_returns")
+        .upsert(toFillPlaceholder, { onConflict: "id" });
+      if (error) {
+        setSaveError("Không khớp được với đơn đã quét trước: " + error.message);
+        return { added, updated, skipped, needsAction, noAction, matchedScan: 0 };
       }
     }
 
@@ -1566,7 +1676,29 @@ export default function App() {
         })
       );
     }
-    return { added, updated, skipped, needsAction, noAction };
+    if (toFillPlaceholder.length) {
+      const patchById = new Map(toFillPlaceholder.map((row) => [row.id, row]));
+      setRecords((prev) =>
+        prev.map((r) => {
+          const patch = patchById.get(r.id);
+          if (!patch) return r;
+          return {
+            ...r,
+            sku: patch.sku,
+            productName: patch.product_name,
+            requestDate: patch.request_date,
+            quantity: patch.quantity,
+            orderType: patch.order_type,
+            reason: patch.reason,
+            solutionPlan: patch.solution_plan,
+            amount: patch.amount,
+            source: patch.source,
+            month: patch.month,
+          };
+        })
+      );
+    }
+    return { added, updated, skipped, needsAction, noAction, matchedScan };
   };
 
   const resolveScan = async (ids, condition) => {
@@ -1586,6 +1718,42 @@ export default function App() {
         idSet.has(r.id) ? { ...r, status: STATUS.RECEIVED, receivedDate, itemCondition: condition } : r
       )
     );
+  };
+
+  // Quét trước khi có file hoàn: chưa có record nào cho mã này, nhưng đã cầm
+  // hàng thật trên tay -> tạo 1 dòng "placeholder", chờ file hoàn về sau sẽ tự
+  // khớp lại (xem importRecords) để lấp product_name/order_type/amount/...
+  const receivePlaceholder = async (orderCode, condition) => {
+    const receivedDate = new Date().toISOString();
+    const newRecord = {
+      id: uid(),
+      orderCode,
+      sku: null,
+      productName: null,
+      requestDate: null,
+      quantity: null,
+      orderType: null,
+      reason: null,
+      solutionPlan: null,
+      amount: null,
+      status: STATUS.RECEIVED,
+      needsPhysicalReturn: true,
+      readyToScan: false,
+      source: "scan-placeholder",
+      receivedDate,
+      itemCondition: condition,
+      month: null,
+      shop: null,
+    };
+    const { error } = await supabase
+      .from("hang_hoan_returns")
+      .upsert(recordToRow(newRecord), { onConflict: "order_code,sku" });
+    if (error) {
+      setSaveError("Không lưu được: " + error.message);
+      return;
+    }
+    setSaveError("");
+    setRecords((prev) => [...prev, newRecord]);
   };
 
   const markComplete = async (id) => {
@@ -1709,6 +1877,7 @@ export default function App() {
                 records={records}
                 overdueDays={overdueDays}
                 onResolveScan={resolveScan}
+                onReceivePlaceholder={receivePlaceholder}
                 onQuickAdd={(code) => { setPrefillCode(code); setShowAdd(true); }}
               />
             )}
