@@ -1178,7 +1178,7 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
    List View
 --------------------------------------------------------- */
 
-function ListView({ records, overdueDays, onComplete, onUndo }) {
+function ListView({ records, overdueDays, onComplete, onUndo, onDelete }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả");
 
@@ -1244,28 +1244,43 @@ function ListView({ records, overdueDays, onComplete, onUndo }) {
                   <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{fmtDate(r.receivedDate)}</td>
                   <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{r.itemCondition || "—"}</td>
                   <td className="px-3 py-2.5">
-                    {eff === STATUS.RECEIVED && (
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => onComplete(r.id)}
-                          className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                          style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
-                        >
-                          Đánh dấu xong
-                        </button>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {eff === STATUS.RECEIVED && (
+                        <>
+                          <button
+                            onClick={() => onComplete(r.id)}
+                            className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                            style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
+                          >
+                            Đánh dấu xong
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
+                                onUndo(r.id);
+                              }
+                            }}
+                            className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                            style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
+                          >
+                            Huỷ quét
+                          </button>
+                        </>
+                      )}
+                      {(r.source === "manual" || r.source === "scan-placeholder") && (
                         <button
                           onClick={() => {
-                            if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
-                              onUndo(r.id);
+                            if (window.confirm("Xoá hẳn dòng " + r.orderCode + "? Không thể hoàn tác.")) {
+                              onDelete(r.id);
                             }
                           }}
                           className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                          style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
+                          style={{ backgroundColor: "var(--danger-bg)", color: "var(--loss-text)" }}
                         >
-                          Huỷ quét
+                          Xoá
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -1781,6 +1796,16 @@ export default function App() {
     );
   };
 
+  const deleteRecord = async (id) => {
+    const { error } = await supabase.from("hang_hoan_returns").delete().eq("id", id);
+    if (error) {
+      setSaveError("Không xoá được: " + error.message);
+      return;
+    }
+    setSaveError("");
+    setRecords((prev) => prev.filter((r) => r.id !== id));
+  };
+
   const NAV = [
     { key: "dashboard", label: "Tổng quan", icon: LayoutGrid },
     { key: "scan", label: "Quét nhận hàng", icon: ScanLine },
@@ -1890,7 +1915,15 @@ export default function App() {
                 onDownloadFile={downloadFile}
               />
             )}
-            {view === "list" && <ListView records={records} overdueDays={overdueDays} onComplete={markComplete} onUndo={undoReceive} />}
+            {view === "list" && (
+              <ListView
+                records={records}
+                overdueDays={overdueDays}
+                onComplete={markComplete}
+                onUndo={undoReceive}
+                onDelete={deleteRecord}
+              />
+            )}
           </>
         )}
       </div>
