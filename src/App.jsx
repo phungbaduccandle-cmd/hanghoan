@@ -1860,6 +1860,7 @@ export default function App() {
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: STATUS.PENDING, receivedDate: null, itemCondition: null } : r))
     );
+    setFeed((prev) => prev.filter((f) => f.id !== id));
   };
 
   const deleteRecord = async (id) => {
@@ -1870,6 +1871,7 @@ export default function App() {
     }
     setSaveError("");
     setRecords((prev) => prev.filter((r) => r.id !== id));
+    setFeed((prev) => prev.filter((f) => f.id !== id));
   };
 
   const NAV = [
