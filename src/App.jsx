@@ -1393,7 +1393,7 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
 
   const eff = records.map((r) => getEffectiveStatus(r, overdueDays));
   const counts = {
-    total: records.length,
+    total: eff.filter((s) => s !== STATUS.NO_ACTION).length,
     pending: eff.filter((s) => s === STATUS.PENDING).length,
     overdue: eff.filter((s) => s === STATUS.OVERDUE).length,
     received: eff.filter((s) => s === STATUS.RECEIVED).length,
@@ -1424,7 +1424,6 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
         <StatCard label="Đã nhận, chờ xử lý" value={counts.received} tone={STATUS.RECEIVED} />
-        <StatCard label="Không cần xử lý" value={counts.noAction} tone={STATUS.NO_ACTION} muted />
       </div>
 
       {readyCount > 0 && (
