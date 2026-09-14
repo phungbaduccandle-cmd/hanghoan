@@ -1271,7 +1271,7 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
    List View
 --------------------------------------------------------- */
 
-function ListView({ records, overdueDays, onComplete, onUndo, onDelete }) {
+function ListView({ records, overdueDays, onUndo, onDelete }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả");
 
@@ -1339,26 +1339,17 @@ function ListView({ records, overdueDays, onComplete, onUndo, onDelete }) {
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1.5 flex-wrap">
                       {eff === STATUS.RECEIVED && (
-                        <>
-                          <button
-                            onClick={() => onComplete(r.id)}
-                            className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                            style={{ backgroundColor: "var(--profit-bg)", color: "var(--profit-text)" }}
-                          >
-                            Đánh dấu xong
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
-                                onUndo(r.id);
-                              }
-                            }}
-                            className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                            style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
-                          >
-                            Huỷ quét
-                          </button>
-                        </>
+                        <button
+                          onClick={() => {
+                            if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
+                              onUndo(r.id);
+                            }
+                          }}
+                          className="text-xs font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                          style={{ backgroundColor: STATUS_STYLE[STATUS.PENDING].bg, color: STATUS_STYLE[STATUS.PENDING].fg }}
+                        >
+                          Huỷ quét
+                        </button>
                       )}
                       {(r.source === "manual" || r.source === "scan-placeholder") && (
                         <button
@@ -1433,7 +1424,6 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
         <StatCard label="Đã nhận, chờ xử lý" value={counts.received} tone={STATUS.RECEIVED} />
-        <StatCard label="Hoàn thành" value={counts.done} tone={STATUS.DONE} />
         <StatCard label="Không cần xử lý" value={counts.noAction} tone={STATUS.NO_ACTION} muted />
       </div>
 
@@ -1888,16 +1878,6 @@ export default function App() {
     return newRecord.id;
   };
 
-  const markComplete = async (id) => {
-    const { error } = await supabase.from("hang_hoan_returns").update({ status: STATUS.DONE }).eq("id", id);
-    if (error) {
-      setSaveError("Không cập nhật được: " + error.message);
-      return;
-    }
-    setSaveError("");
-    setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, status: STATUS.DONE } : r)));
-  };
-
   const undoReceive = async (id) => {
     const { error } = await supabase
       .from("hang_hoan_returns")
@@ -2040,7 +2020,6 @@ export default function App() {
               <ListView
                 records={records}
                 overdueDays={overdueDays}
-                onComplete={markComplete}
                 onUndo={undoReceive}
                 onDelete={deleteRecord}
               />
