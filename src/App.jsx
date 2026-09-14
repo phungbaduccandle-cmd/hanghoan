@@ -705,6 +705,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
           await onRecordFileHistory({
             file,
             fileType: type,
+            shop: selectedShop,
             rowCount: parsed.length,
             addedCount: result.added,
             skippedCount: result.skipped,
@@ -889,7 +890,7 @@ function ImportView({ records, onImport, fileHistory, onRecordFileHistory, onDow
                 <div className="min-w-0">
                   <div className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{h.file_name}</div>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {typeLabel[h.file_type] || h.file_type} · {h.row_count} dòng · {fmtDate(h.uploaded_at)}
+                    {typeLabel[h.file_type] || h.file_type}{h.shop ? ` · ${h.shop}` : ""} · {h.row_count} dòng · {fmtDate(h.uploaded_at)}
                   </div>
                 </div>
               </div>
@@ -1546,7 +1547,7 @@ export default function App() {
     })();
   }, []);
 
-  const recordFileHistory = async ({ file, fileType, rowCount, addedCount, skippedCount }) => {
+  const recordFileHistory = async ({ file, fileType, shop, rowCount, addedCount, skippedCount }) => {
     const storagePath = `imports/${Date.now()}-${toStorageSafeName(file.name)}`;
     const { error: uploadError } = await supabase.storage
       .from("hang-hoan-files")
@@ -1557,6 +1558,7 @@ export default function App() {
       id: uid(),
       file_name: file.name,
       file_type: fileType,
+      shop: shop || null,
       storage_path: storagePath,
       row_count: rowCount,
       added_count: addedCount,
@@ -1671,6 +1673,10 @@ export default function App() {
           status: placeholder.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
           received_date: placeholder.receivedDate,
           item_condition: placeholder.itemCondition,
+          // Giữ nguyên shop cũ nếu placeholder đã từng gán shop rồi (hiếm khi
+          // xảy ra vì placeholder luôn tạo với shop=null), chỉ lấy shop đang
+          // chọn khi placeholder chưa có shop.
+          shop: placeholder.shop || p.shop || null,
           sku: p.sku || null,
           product_name: p.productName || null,
           request_date: p.requestDate || null,
@@ -1709,6 +1715,10 @@ export default function App() {
           tracking_code: p.trackingCode || existing.trackingCode || null,
           sku: p.sku || null,
           status: existing.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
+          // Giữ nguyên shop cũ nếu đơn đã từng gán shop rồi — tránh nhập lại
+          // file cũ (vd để vá mã vận đơn) mà lỡ chọn nhầm shop, ghi đè mất
+          // shop đúng đã có sẵn. Chỉ lấy shop đang chọn khi đơn chưa có shop.
+          shop: existing.shop || p.shop || null,
           product_name: p.productName || null,
           request_date: p.requestDate || null,
           quantity: p.quantity ?? null,
@@ -1779,6 +1789,7 @@ export default function App() {
           return {
             ...r,
             trackingCode: patch.tracking_code,
+            shop: patch.shop,
             productName: patch.product_name,
             requestDate: patch.request_date,
             quantity: patch.quantity,
@@ -1802,6 +1813,7 @@ export default function App() {
             ...r,
             orderCode: patch.order_code,
             trackingCode: patch.tracking_code,
+            shop: patch.shop,
             sku: patch.sku,
             productName: patch.product_name,
             requestDate: patch.request_date,
