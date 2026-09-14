@@ -966,6 +966,7 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
   const chooseCondition = async (condition) => {
     if (pendingNewCode) {
       const newId = await onReceivePlaceholder(pendingNewCode, condition);
+      setFeed((prev) => prev.filter((f) => !(f.kind === "notfound" && f.orderCode === pendingNewCode)));
       pushFeed({
         kind: "success",
         orderCode: pendingNewCode,
@@ -1168,7 +1169,13 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{
                     backgroundColor:
-                      f.kind === "success" ? "var(--profit-text)" : f.kind === "notfound" ? "var(--loss-text)" : "var(--accent)",
+                      f.kind === "success"
+                        ? f.source === "scan-placeholder"
+                          ? STATUS_STYLE[STATUS.PENDING].dot
+                          : "var(--profit-text)"
+                        : f.kind === "notfound"
+                        ? "var(--loss-text)"
+                        : "var(--accent)",
                   }}
                 />
                 <div>
@@ -1176,7 +1183,12 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
                     {f.orderCode}
                   </div>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {f.kind === "success" && `Đã nhận · ${f.condition}${f.count > 1 ? ` · ${f.count} dòng` : ""}`}
+                    {f.kind === "success" &&
+                      f.source === "scan-placeholder" &&
+                      `⚠ Chưa có trong hệ thống — chờ khớp file hoàn · ${f.condition}`}
+                    {f.kind === "success" &&
+                      f.source !== "scan-placeholder" &&
+                      `✓ Đã khớp với đơn trong hệ thống · ${f.condition}${f.count > 1 ? ` · ${f.count} dòng` : ""}`}
                     {f.kind === "notfound" && "Không tìm thấy trong hệ thống"}
                     {f.kind === "already" && `Đã quét trước đó lúc ${fmtDate(f.record.receivedDate)}`}
                     {f.kind === "no_action" && "Đơn này không cần nhận hàng vật lý (đã hoàn tiền ngay / huỷ trước khi giao)"}
