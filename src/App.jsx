@@ -526,7 +526,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function StatCard({ label, value, tone, muted }) {
+function StatCard({ label, value, tone, muted, sub }) {
   const s = STATUS_STYLE[tone] || null;
   return (
     <div
@@ -542,6 +542,11 @@ function StatCard({ label, value, tone, muted }) {
       >
         {value}
       </div>
+      {sub && (
+        <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -1422,6 +1427,16 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const readyCount = records.filter((r, i) => eff[i] === STATUS.PENDING && r.readyToScan).length;
 
+  const receivedRecords = records.filter((r) => r.status === STATUS.RECEIVED);
+  const receivedMatched = receivedRecords.filter((r) => r.orderCode).length;
+  const receivedUnmatched = receivedRecords.length - receivedMatched;
+  const receivedSub =
+    receivedRecords.length === 0
+      ? null
+      : receivedUnmatched === 0
+      ? "Tất cả đã khớp file"
+      : `${receivedMatched} đã khớp · ${receivedUnmatched} chưa khớp file`;
+
   const recent = [...records].sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate)).slice(0, 6);
 
   return (
@@ -1440,7 +1455,7 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
-        <StatCard label="Đã nhận, chờ xử lý" value={counts.received} tone={STATUS.RECEIVED} />
+        <StatCard label="Đã nhận, chờ xử lý" value={counts.received} tone={STATUS.RECEIVED} sub={receivedSub} />
       </div>
 
       {readyCount > 0 && (
