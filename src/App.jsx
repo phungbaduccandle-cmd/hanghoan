@@ -164,6 +164,7 @@ function rowToRecord(row) {
   return {
     id: row.id,
     orderCode: row.order_code,
+    trackingCode: row.tracking_code,
     sku: row.sku,
     productName: row.product_name,
     requestDate: row.request_date,
@@ -187,6 +188,7 @@ function recordToRow(rec) {
   return {
     id: rec.id,
     order_code: rec.orderCode,
+    tracking_code: rec.trackingCode || null,
     sku: rec.sku || null,
     product_name: rec.productName || null,
     request_date: rec.requestDate || null,
@@ -226,6 +228,7 @@ function parseReturnRefund(rows) {
   const colLast = (name) => header.lastIndexOf(name);
 
   const iOrder = col("Mã đơn hàng");
+  const iTracking = col("Mã vận đơn trả hàng");
   const iSkuA = col("SKU phân loại");
   const iSkuB = col("SKU sản phẩm");
   const iProduct = col("Tên sản phẩm");
@@ -262,6 +265,7 @@ function parseReturnRefund(rows) {
     }
     out.push({
       orderCode: String(r[iOrder]).trim().toUpperCase(),
+      trackingCode: r[iTracking] ? String(r[iTracking]).trim().toUpperCase() : null,
       sku: r[iSkuA] || r[iSkuB] || "",
       productName: r[iProduct] || "",
       requestDate: toISO(r[iReqDate]),
@@ -285,6 +289,7 @@ function parseCancelled(rows) {
 
   const iOrder = col("Mã đơn hàng");
   const iTracking = col("Mã Kiện Hàng");
+  const iTrackingCode = col("Mã vận đơn");
   const iReason = col("Lý do hủy");
   const iSku = col("SKU phân loại hàng");
   const iSkuB = col("SKU sản phẩm");
@@ -314,6 +319,7 @@ function parseCancelled(rows) {
     }
     out.push({
       orderCode: String(r[iOrder]).trim().toUpperCase(),
+      trackingCode: r[iTrackingCode] ? String(r[iTrackingCode]).trim().toUpperCase() : null,
       sku: r[iSku] || r[iSkuB] || "",
       productName: r[iProduct] || "",
       requestDate: toISO(r[iDate]),
@@ -336,6 +342,7 @@ function parseFailedDelivery(rows) {
   const col = (name) => header.indexOf(name);
 
   const iOrder = col("Mã đơn hàng");
+  const iTrackingCode = col("Mã vận đơn");
   const iStatus = col("Trạng thái trả hàng");
   const iSku = col("SKU phân loại hàng");
   const iSkuB = col("SKU sản phẩm");
@@ -362,6 +369,7 @@ function parseFailedDelivery(rows) {
     }
     out.push({
       orderCode: String(r[iOrder]).trim().toUpperCase(),
+      trackingCode: r[iTrackingCode] ? String(r[iTrackingCode]).trim().toUpperCase() : null,
       sku: r[iSku] || r[iSkuB] || "",
       productName: r[iProduct] || "",
       requestDate: toISO(r[iDate]),
@@ -384,6 +392,7 @@ function parseTiktokReturnRefund(rows) {
   const col = (name) => header.indexOf(name);
 
   const iOrder = col("Order ID");
+  const iTrackingCode = col("Return Logistics Tracking ID");
   const iSku = col("Seller SKU");
   const iProduct = col("Product Name");
   const iReqDate = col("Time Requested");
@@ -414,6 +423,7 @@ function parseTiktokReturnRefund(rows) {
     }
     out.push({
       orderCode: String(r[iOrder]).trim().toUpperCase(),
+      trackingCode: r[iTrackingCode] ? String(r[iTrackingCode]).trim().toUpperCase() : null,
       sku: r[iSku] || "",
       productName: r[iProduct] || "",
       requestDate: toISOTiktok(r[iReqDate]),
@@ -439,6 +449,7 @@ function parseTiktokOrderStatus(rows) {
   const col = (name) => header.indexOf(name);
 
   const iOrder = col("Order ID");
+  const iTrackingCode = col("Tracking ID");
   const iSku = col("Seller SKU");
   const iProduct = col("Product Name");
   const iQty = col("Quantity");
@@ -469,6 +480,7 @@ function parseTiktokOrderStatus(rows) {
     }
     out.push({
       orderCode: String(r[iOrder]).trim().toUpperCase(),
+      trackingCode: r[iTrackingCode] ? String(r[iTrackingCode]).trim().toUpperCase() : null,
       sku: r[iSku] || "",
       productName: r[iProduct] || "",
       requestDate: toISOTiktok(r[iDate]),
@@ -928,7 +940,7 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
         id: r.id,
         time: r.receivedDate,
         kind: "success",
-        orderCode: r.orderCode,
+        orderCode: r.orderCode || r.trackingCode,
         condition: r.itemCondition,
         count: 1,
         source: r.source,
@@ -947,7 +959,7 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
   const processCode = (raw) => {
     const normalized = String(raw || "").trim().toUpperCase();
     if (!normalized) return;
-    const matches = records.filter((r) => r.orderCode.toUpperCase() === normalized);
+    const matches = records.filter((r) => r.trackingCode && r.trackingCode.toUpperCase() === normalized);
 
     if (matches.length === 0) {
       pushFeed({ kind: "notfound", orderCode: normalized });
@@ -1281,7 +1293,11 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
       if (statusFilter !== "Tất cả" && eff !== statusFilter) return false;
       if (q.trim()) {
         const s = q.trim().toLowerCase();
-        return r.orderCode.toLowerCase().includes(s) || (r.sku || "").toLowerCase().includes(s);
+        return (
+          (r.orderCode || "").toLowerCase().includes(s) ||
+          (r.trackingCode || "").toLowerCase().includes(s) ||
+          (r.sku || "").toLowerCase().includes(s)
+        );
       }
       return true;
     })
@@ -1323,7 +1339,7 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
               return (
                 <tr key={r.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                   <td className="px-3 py-2.5 font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
-                    {r.orderCode}
+                    {r.orderCode || r.trackingCode || "—"}
                     {r.readyToScan && eff === STATUS.PENDING && (
                       <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ backgroundColor: "var(--profit-text)" }} title="Shopee xác nhận đã giao hoàn về" />
                     )}
@@ -1341,7 +1357,7 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
                       {eff === STATUS.RECEIVED && (
                         <button
                           onClick={() => {
-                            if (window.confirm("Huỷ quét đơn " + r.orderCode + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
+                            if (window.confirm("Huỷ quét đơn " + (r.orderCode || r.trackingCode) + "? Đơn sẽ về lại trạng thái Chờ hàng về.")) {
                               onUndo(r.id);
                             }
                           }}
@@ -1354,7 +1370,7 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
                       {(r.source === "manual" || r.source === "scan-placeholder") && (
                         <button
                           onClick={() => {
-                            if (window.confirm("Xoá hẳn dòng " + r.orderCode + "? Không thể hoàn tác.")) {
+                            if (window.confirm("Xoá hẳn dòng " + (r.orderCode || r.trackingCode) + "? Không thể hoàn tác.")) {
                               onDelete(r.id);
                             }
                           }}
@@ -1472,7 +1488,7 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
             <div key={r.id} className="rounded-2xl px-4 py-3 flex items-center justify-between border" style={{ backgroundColor: "var(--panel)", borderColor: "var(--border)" }}>
               <div>
                 <div className="text-sm font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
-                  {r.orderCode} <span style={{ color: "var(--text-muted)", fontFamily: "inherit" }}>· {r.sku}</span>
+                  {r.orderCode || r.trackingCode || "—"} <span style={{ color: "var(--text-muted)", fontFamily: "inherit" }}>· {r.sku}</span>
                 </div>
                 <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {r.reason || "Không rõ lý do"} · {fmtDate(r.requestDate)}
@@ -1604,12 +1620,13 @@ export default function App() {
   // KHÔNG đụng tới status/received_date/item_condition — những trường đó chỉ
   // đổi qua luồng quét/nhận hàng thật, file không biết việc đó đã xảy ra.
   //
-  // Riêng: nếu order_code khớp với 1 dòng "placeholder" (tạo qua nút "Xác
-  // nhận đã nhận" trong ScanView khi quét trước khi có file — sku=null,
-  // status=RECEIVED, source="scan-placeholder"), dòng đầu tiên trong file có
-  // cùng order_code sẽ được dùng để LẤP vào đúng dòng placeholder đó (giữ
-  // nguyên status/received_date/item_condition/id); các dòng SKU khác cùng
-  // order_code (đơn nhiều SKU) được thêm mới nhưng copy luôn
+  // Riêng: nếu trackingCode (mã vận đơn) khớp với 1 dòng "placeholder" (tạo
+  // qua nút "Xác nhận đã nhận" trong ScanView khi quét trước khi có file —
+  // order_code=null, sku=null, status=RECEIVED, source="scan-placeholder"),
+  // dòng đầu tiên trong file có cùng trackingCode sẽ được dùng để LẤP vào
+  // đúng dòng placeholder đó (giữ nguyên status/received_date/item_condition/
+  // id, điền order_code/sku/product_name.../ từ file); các dòng SKU khác
+  // cùng trackingCode (đơn nhiều SKU) được thêm mới nhưng copy luôn
   // status/received_date/item_condition từ placeholder, coi như cả gói đã
   // về kho cùng lúc.
   const importRecords = async (parsed) => {
@@ -1617,14 +1634,14 @@ export default function App() {
     const current = recordsRef.current;
     const existingByKey = new Map(current.map((r) => [normKey(r.orderCode, r.sku), r]));
 
-    const placeholderByOrderCode = new Map();
+    const placeholderByTrackingCode = new Map();
     for (const r of current) {
-      if (r.source === "scan-placeholder" && !r.sku && r.status === STATUS.RECEIVED) {
-        const ock = r.orderCode.toUpperCase();
-        if (!placeholderByOrderCode.has(ock)) placeholderByOrderCode.set(ock, r);
+      if (r.source === "scan-placeholder" && !r.sku && r.status === STATUS.RECEIVED && r.trackingCode) {
+        const tck = r.trackingCode.toUpperCase();
+        if (!placeholderByTrackingCode.has(tck)) placeholderByTrackingCode.set(tck, r);
       }
     }
-    const filledPlaceholderOrderCodes = new Set();
+    const filledPlaceholderTrackingCodes = new Set();
     const claimedKeys = new Set();
 
     let added = 0, updated = 0, skipped = 0, needsAction = 0, noAction = 0, matchedScan = 0;
@@ -1640,16 +1657,17 @@ export default function App() {
       }
       claimedKeys.add(key);
 
-      const orderKey = p.orderCode.toUpperCase();
-      const placeholder = placeholderByOrderCode.get(orderKey);
+      const trackKey = p.trackingCode ? p.trackingCode.toUpperCase() : null;
+      const placeholder = trackKey ? placeholderByTrackingCode.get(trackKey) : null;
 
-      if (placeholder && !filledPlaceholderOrderCodes.has(orderKey)) {
-        // Dòng đầu tiên của order_code này -> lấp vào đúng dòng placeholder đã quét
-        filledPlaceholderOrderCodes.add(orderKey);
+      if (placeholder && !filledPlaceholderTrackingCodes.has(trackKey)) {
+        // Dòng đầu tiên của trackingCode này -> lấp vào đúng dòng placeholder đã quét
+        filledPlaceholderTrackingCodes.add(trackKey);
         matchedScan++;
         toFillPlaceholder.push({
           id: placeholder.id,
           order_code: p.orderCode,
+          tracking_code: p.trackingCode,
           status: placeholder.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
           received_date: placeholder.receivedDate,
           item_condition: placeholder.itemCondition,
@@ -1667,8 +1685,8 @@ export default function App() {
         continue;
       }
 
-      if (placeholder && filledPlaceholderOrderCodes.has(orderKey)) {
-        // SKU khác của cùng đơn đã có placeholder -> thêm mới, coi như đã nhận cùng lúc
+      if (placeholder && filledPlaceholderTrackingCodes.has(trackKey)) {
+        // SKU khác của cùng trackingCode đã có placeholder -> thêm mới, coi như đã nhận cùng lúc
         matchedScan++;
         added++;
         toAdd.push({
@@ -1688,6 +1706,7 @@ export default function App() {
         toUpdate.push({
           id: existing.id,
           order_code: p.orderCode,
+          tracking_code: p.trackingCode || existing.trackingCode || null,
           sku: p.sku || null,
           status: existing.status, // giữ nguyên, chỉ gửi lại để thoả NOT NULL
           product_name: p.productName || null,
@@ -1759,6 +1778,7 @@ export default function App() {
           if (!patch) return r;
           return {
             ...r,
+            trackingCode: patch.tracking_code,
             productName: patch.product_name,
             requestDate: patch.request_date,
             quantity: patch.quantity,
@@ -1780,6 +1800,8 @@ export default function App() {
           if (!patch) return r;
           return {
             ...r,
+            orderCode: patch.order_code,
+            trackingCode: patch.tracking_code,
             sku: patch.sku,
             productName: patch.product_name,
             requestDate: patch.request_date,
@@ -1816,17 +1838,18 @@ export default function App() {
     );
   };
 
-  // Quét trước khi có file hoàn: chưa có record nào cho mã này, nhưng đã cầm
-  // hàng thật trên tay -> tạo 1 dòng "placeholder", chờ file hoàn về sau sẽ tự
-  // khớp lại (xem importRecords) để lấp product_name/order_type/amount/...
+  // Quét trước khi có file hoàn: chưa có record nào cho mã vận đơn này, nhưng
+  // đã cầm hàng thật trên tay -> tạo 1 dòng "placeholder" (order_code để null),
+  // chờ file hoàn về sau sẽ tự khớp lại theo trackingCode (xem importRecords)
+  // để lấp order_code/product_name/order_type/amount/...
   // Luu y: sku luon la null o cac dong "ghi tam" (scan-placeholder), ma Postgres
   // khong coi NULL trung NULL nen ON CONFLICT (order_code, sku) khong bao gio khop.
-  // Vi vay phai tu kiem tra co dong scan-placeholder nao cung ma don chua tren
-  // client roi UPDATE dung dong do, thay vi upsert lai gay tao them dong moi.
-  const receivePlaceholder = async (orderCode, condition) => {
+  // Vi vay phai tu kiem tra co dong scan-placeholder nao cung ma van don chua
+  // tren client roi UPDATE dung dong do, thay vi upsert lai gay tao them dong moi.
+  const receivePlaceholder = async (trackingCode, condition) => {
     const receivedDate = new Date().toISOString();
     const existing = recordsRef.current.find(
-      (r) => r.source === "scan-placeholder" && r.orderCode.toUpperCase() === orderCode.toUpperCase()
+      (r) => r.source === "scan-placeholder" && r.trackingCode && r.trackingCode.toUpperCase() === trackingCode.toUpperCase()
     );
 
     if (existing) {
@@ -1847,7 +1870,8 @@ export default function App() {
 
     const newRecord = {
       id: uid(),
-      orderCode,
+      orderCode: null,
+      trackingCode,
       sku: null,
       productName: null,
       requestDate: null,
