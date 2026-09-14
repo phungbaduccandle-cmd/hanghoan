@@ -54,6 +54,22 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+// Supabase mặc định chỉ trả tối đa 1000 dòng mỗi lần select() — tải hết toàn
+// bộ bảng bằng cách phân trang qua .range(), gộp lại cho đến khi hết dữ liệu.
+async function fetchAllRows(table, buildQuery = (q) => q) {
+  const PAGE_SIZE = 1000;
+  let all = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(supabase.from(table).select("*")).range(from, from + PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    all = all.concat(data || []);
+    if (!data || data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return { data: all, error: null };
+}
+
 function fmtDate(iso, withTime = true) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -1502,7 +1518,7 @@ export default function App() {
   // Load from Supabase on mount
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.from("hang_hoan_returns").select("*");
+      const { data, error } = await fetchAllRows("hang_hoan_returns");
       if (error) {
         setSaveError("Không tải được dữ liệu từ Supabase: " + error.message);
       } else {
@@ -1516,10 +1532,9 @@ export default function App() {
         .maybeSingle();
       if (settingsRow?.value) setOverdueDaysState(Number(settingsRow.value) || 15);
 
-      const { data: historyData } = await supabase
-        .from("hang_hoan_file_history")
-        .select("*")
-        .order("uploaded_at", { ascending: false });
+      const { data: historyData } = await fetchAllRows("hang_hoan_file_history", (q) =>
+        q.order("uploaded_at", { ascending: false })
+      );
       setFileHistory(historyData || []);
 
       setLoading(false);
