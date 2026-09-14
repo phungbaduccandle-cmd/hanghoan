@@ -1830,8 +1830,32 @@ export default function App() {
   // Quét trước khi có file hoàn: chưa có record nào cho mã này, nhưng đã cầm
   // hàng thật trên tay -> tạo 1 dòng "placeholder", chờ file hoàn về sau sẽ tự
   // khớp lại (xem importRecords) để lấp product_name/order_type/amount/...
+  // Luu y: sku luon la null o cac dong "ghi tam" (scan-placeholder), ma Postgres
+  // khong coi NULL trung NULL nen ON CONFLICT (order_code, sku) khong bao gio khop.
+  // Vi vay phai tu kiem tra co dong scan-placeholder nao cung ma don chua tren
+  // client roi UPDATE dung dong do, thay vi upsert lai gay tao them dong moi.
   const receivePlaceholder = async (orderCode, condition) => {
     const receivedDate = new Date().toISOString();
+    const existing = recordsRef.current.find(
+      (r) => r.source === "scan-placeholder" && r.orderCode.toUpperCase() === orderCode.toUpperCase()
+    );
+
+    if (existing) {
+      const { error } = await supabase
+        .from("hang_hoan_returns")
+        .update({ received_date: receivedDate, item_condition: condition })
+        .eq("id", existing.id);
+      if (error) {
+        setSaveError("Không lưu được: " + error.message);
+        return null;
+      }
+      setSaveError("");
+      setRecords((prev) =>
+        prev.map((r) => (r.id === existing.id ? { ...r, receivedDate, itemCondition: condition } : r))
+      );
+      return existing.id;
+    }
+
     const newRecord = {
       id: uid(),
       orderCode,
