@@ -1444,19 +1444,12 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         {SHOPS.map((s) => <option key={s}>{s}</option>)}
       </select>
 
-      <div className="flex flex-wrap gap-3 items-start">
+      <div className="flex flex-wrap gap-3">
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
-        <div className="rounded-2xl border p-3" style={{ borderColor: "var(--border)" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
-            Đã nhận hàng
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} />
-            <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} />
-          </div>
-        </div>
+        <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} />
+        <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} />
       </div>
 
       {readyCount > 0 && (
