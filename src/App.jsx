@@ -1296,7 +1296,11 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
   const filtered = records
     .filter((r) => {
       const eff = getEffectiveStatus(r, overdueDays);
-      if (statusFilter !== "Tất cả" && eff !== statusFilter) return false;
+      if (statusFilter === "Chưa khớp file") {
+        if (!(eff === STATUS.RECEIVED && !r.orderCode)) return false;
+      } else if (statusFilter !== "Tất cả" && eff !== statusFilter) {
+        return false;
+      }
       if (q.trim()) {
         const s = q.trim().toLowerCase();
         return (
@@ -1324,7 +1328,10 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputCls} style={{ ...inputStyle, width: "auto" }}>
           <option>Tất cả</option>
-          {Object.values(STATUS).map((s) => <option key={s}>{s}</option>)}
+          <option>{STATUS.PENDING}</option>
+          <option>{STATUS.OVERDUE}</option>
+          <option>{STATUS.RECEIVED}</option>
+          <option>Chưa khớp file</option>
         </select>
       </div>
 
