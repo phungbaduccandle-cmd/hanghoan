@@ -1448,8 +1448,16 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
-        <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} />
-        <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} />
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+          Đã nhận hàng
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} />
+          <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} />
+        </div>
       </div>
 
       {readyCount > 0 && (
