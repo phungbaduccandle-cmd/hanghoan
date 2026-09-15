@@ -1427,15 +1427,8 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const readyCount = records.filter((r, i) => eff[i] === STATUS.PENDING && r.readyToScan).length;
 
-  const receivedRecords = records.filter((r) => r.status === STATUS.RECEIVED);
-  const receivedMatched = receivedRecords.filter((r) => r.orderCode).length;
-  const receivedUnmatched = receivedRecords.length - receivedMatched;
-  const receivedSub =
-    receivedRecords.length === 0
-      ? null
-      : receivedUnmatched === 0
-      ? "Tất cả đã khớp file"
-      : `${receivedMatched} đã khớp · ${receivedUnmatched} chưa khớp file`;
+  const receivedMatched = records.filter((r) => r.status === STATUS.RECEIVED && r.orderCode).length;
+  const receivedUnmatched = records.filter((r) => r.status === STATUS.RECEIVED && !r.orderCode).length;
 
   const recent = [...records].sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate)).slice(0, 6);
 
@@ -1455,7 +1448,8 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
         <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
         <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
-        <StatCard label="Đã nhận, chờ xử lý" value={counts.received} tone={STATUS.RECEIVED} sub={receivedSub} />
+        <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.RECEIVED} />
+        <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.RECEIVED} />
       </div>
 
       {readyCount > 0 && (
