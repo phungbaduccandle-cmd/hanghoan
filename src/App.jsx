@@ -526,18 +526,18 @@ function StatusBadge({ status }) {
   );
 }
 
-function StatCard({ label, value, tone, muted, sub }) {
+function StatCard({ label, value, tone, muted, sub, fixed }) {
   const s = STATUS_STYLE[tone] || null;
   return (
     <div
-      className="flex-1 min-w-[130px] rounded-2xl p-4 border"
+      className={fixed ? "w-[140px] h-[120px] flex-shrink-0 rounded-2xl p-4 border" : "flex-1 min-w-[130px] rounded-2xl p-4 border"}
       style={{ backgroundColor: muted ? "var(--bg)" : "var(--panel)", borderColor: "var(--border)" }}
     >
       <div className="text-xs font-medium tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         {label}
       </div>
       <div
-        className="mt-2 text-4xl font-bold"
+        className="mt-2 text-2xl font-bold"
         style={{ color: s ? s.dot : "var(--text)", fontFamily: "'Space Grotesk', sans-serif" }}
       >
         {value}
@@ -1452,8 +1452,8 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
             Dữ liệu từ file
           </h3>
           <div className="flex flex-wrap gap-3">
-            <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} />
-            <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} />
+            <StatCard label="Chờ hàng về" value={counts.pending} tone={STATUS.PENDING} fixed />
+            <StatCard label="Quá hạn / mất" value={counts.overdue} tone={STATUS.OVERDUE} fixed />
           </div>
         </div>
 
@@ -1462,8 +1462,8 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
             Đã nhận hàng
           </h3>
           <div className="flex flex-wrap gap-3">
-            <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} />
-            <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} />
+            <StatCard label="Đã khớp" value={receivedMatched} tone={STATUS.DONE} fixed />
+            <StatCard label="Chưa khớp file" value={receivedUnmatched} tone={STATUS.PENDING} fixed />
           </div>
         </div>
       </div>
