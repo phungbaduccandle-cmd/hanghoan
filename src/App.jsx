@@ -537,7 +537,7 @@ function StatCard({ label, value, tone, muted, sub }) {
         {label}
       </div>
       <div
-        className="mt-2 text-2xl font-bold"
+        className="mt-2 text-4xl font-bold"
         style={{ color: s ? s.dot : "var(--text)", fontFamily: "'Space Grotesk', sans-serif" }}
       >
         {value}
