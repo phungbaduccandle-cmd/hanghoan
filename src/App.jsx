@@ -1552,6 +1552,128 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
 }
 
 /* ---------------------------------------------------------
+   Damaged Items View
+--------------------------------------------------------- */
+
+function DamagedView({ records: allRecords }) {
+  const [shopFilter, setShopFilter] = useState("Tất cả shop");
+  const damaged = allRecords.filter((r) => r.itemCondition === "Hỏng");
+  const filtered = shopFilter === "Tất cả shop" ? damaged : damaged.filter((r) => r.shop === shopFilter);
+
+  const totalValue = filtered.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const bySku = new Map();
+  for (const r of filtered) {
+    const key = r.sku || "—";
+    if (!bySku.has(key)) bySku.set(key, { sku: key, productName: r.productName, count: 0, value: 0 });
+    const g = bySku.get(key);
+    g.count += 1;
+    g.value += Number(r.amount) || 0;
+  }
+  const skuRows = [...bySku.values()].sort((a, b) => b.count - a.count);
+
+  const byShop = new Map();
+  for (const r of filtered) {
+    const key = r.shop || "—";
+    byShop.set(key, (byShop.get(key) || 0) + 1);
+  }
+  const shopRows = [...byShop.entries()].sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <select
+        value={shopFilter}
+        onChange={(e) => setShopFilter(e.target.value)}
+        className={inputCls}
+        style={{ ...inputStyle, width: "auto" }}
+      >
+        <option>Tất cả shop</option>
+        {SHOPS.map((s) => <option key={s}>{s}</option>)}
+      </select>
+
+      <div className="flex flex-wrap gap-3">
+        <StatCard label="Tổng số đơn hỏng" value={filtered.length} tone={STATUS.OVERDUE} />
+        <StatCard label="Tổng giá trị thiệt hại" value={fmtMoney(totalValue)} tone={STATUS.OVERDUE} />
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+          Theo SKU
+        </h3>
+        <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
+          <table className="w-full text-sm min-w-[600px]">
+            <thead>
+              <tr className="text-left" style={{ backgroundColor: "var(--bg)" }}>
+                {["SKU", "Sản phẩm", "Số lượng hỏng", "Tổng giá trị"].map((h) => (
+                  <th key={h} className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {skuRows.map((g) => (
+                <tr key={g.sku} className="border-t" style={{ borderColor: "var(--border)" }}>
+                  <td className="px-3 py-2.5 font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--text)" }}>
+                    {g.sku}
+                  </td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{g.productName || "—"}</td>
+                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{g.count}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{fmtMoney(g.value)}</td>
+                </tr>
+              ))}
+              {skuRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-8 text-center" style={{ color: "var(--text-muted)" }}>
+                    Chưa có đơn hỏng nào.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {shopFilter === "Tất cả shop" && (
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+            Theo shop
+          </h3>
+          <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "var(--border)", backgroundColor: "var(--panel)" }}>
+            <table className="w-full text-sm min-w-[400px]">
+              <thead>
+                <tr className="text-left" style={{ backgroundColor: "var(--bg)" }}>
+                  {["Shop", "Số lượng hỏng"].map((h) => (
+                    <th key={h} className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {shopRows.map(([shop, count]) => (
+                  <tr key={shop} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-3 py-2.5 font-semibold" style={{ color: "var(--text)" }}>{shop}</td>
+                    <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>{count}</td>
+                  </tr>
+                ))}
+                {shopRows.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-3 py-8 text-center" style={{ color: "var(--text-muted)" }}>
+                      Chưa có đơn hỏng nào.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    Main App
 --------------------------------------------------------- */
 
@@ -1992,6 +2114,7 @@ export default function App() {
     { key: "scan", label: "Quét nhận hàng", icon: ScanLine },
     { key: "import", label: "Nhập từ Shopee", icon: UploadCloud },
     { key: "list", label: "Danh sách", icon: ListFilter },
+    { key: "damaged", label: "Hàng hỏng", icon: AlertTriangle },
   ];
 
   return (
@@ -2106,6 +2229,7 @@ export default function App() {
                 onDelete={deleteRecord}
               />
             )}
+            {view === "damaged" && <DamagedView records={records} />}
           </>
         )}
       </div>
