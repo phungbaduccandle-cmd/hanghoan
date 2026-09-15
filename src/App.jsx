@@ -1444,7 +1444,7 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
         {SHOPS.map((s) => <option key={s}>{s}</option>)}
       </select>
 
-      <div className="flex flex-wrap gap-3 items-start">
+      <div className="flex flex-wrap gap-3 items-stretch">
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
 
         <div className="rounded-2xl border p-3" style={{ borderColor: "var(--border)" }}>
