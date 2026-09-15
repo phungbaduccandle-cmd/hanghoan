@@ -570,9 +570,10 @@ const inputStyle = { borderColor: "var(--border)", backgroundColor: "var(--panel
    Add Record Modal
 --------------------------------------------------------- */
 
-function AddModal({ onClose, onSave, prefillOrderCode }) {
+function AddModal({ onClose, onSave, prefillOrderCode, prefillTrackingCode }) {
   const [form, setForm] = useState({
     orderCode: prefillOrderCode || "",
+    trackingCode: prefillTrackingCode || "",
     sku: "",
     shop: "ductincandle",
     quantity: 1,
@@ -595,6 +596,7 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
     onSave({
       ...form,
       orderCode: form.orderCode.trim().toUpperCase(),
+      trackingCode: form.trackingCode.trim() ? form.trackingCode.trim().toUpperCase() : null,
       quantity: Number(form.quantity) || 1,
       amount: form.amount === "" ? null : Number(form.amount),
       requestDate: new Date(form.requestDate).toISOString(),
@@ -619,6 +621,9 @@ function AddModal({ onClose, onSave, prefillOrderCode }) {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Mã đơn hàng *">
             <input className={inputCls} style={inputStyle} value={form.orderCode} onChange={set("orderCode")} placeholder="VD: 260601VSBXFJY2" />
+          </Field>
+          <Field label="Mã vận đơn">
+            <input className={inputCls} style={inputStyle} value={form.trackingCode} onChange={set("trackingCode")} placeholder="VD: SPXVN066578312869" />
           </Field>
           <Field label="SKU">
             <input className={inputCls} style={inputStyle} value={form.sku} onChange={set("sku")} />
@@ -952,6 +957,20 @@ function ScanView({ records, overdueDays, onResolveScan, onReceivePlaceholder, o
         source: r.source,
       }));
     setFeed(seeded);
+  }, [records]);
+
+  // Dọn feed theo records mới nhất: nếu 1 dòng "success" đã bị xoá hẳn
+  // (deleteRecord) hoặc bị huỷ quét về lại Chờ hàng về (undoReceive) từ
+  // ListView, entry tương ứng trong "Vừa quét" cũng phải biến mất theo,
+  // không cần ScanView tự setFeed trực tiếp từ App (App không có state feed).
+  useEffect(() => {
+    setFeed((prev) =>
+      prev.filter((f) => {
+        if (f.kind !== "success" || !f.id) return true;
+        const rec = records.find((r) => r.id === f.id);
+        return !!rec && rec.status === STATUS.RECEIVED;
+      })
+    );
   }, [records]);
 
   useEffect(() => {
@@ -2095,7 +2114,6 @@ export default function App() {
     setRecords((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: STATUS.PENDING, receivedDate: null, itemCondition: null } : r))
     );
-    setFeed((prev) => prev.filter((f) => f.id !== id));
   };
 
   const deleteRecord = async (id) => {
@@ -2106,7 +2124,6 @@ export default function App() {
     }
     setSaveError("");
     setRecords((prev) => prev.filter((r) => r.id !== id));
-    setFeed((prev) => prev.filter((f) => f.id !== id));
   };
 
   const NAV = [
@@ -2236,7 +2253,7 @@ export default function App() {
 
       {showAdd && (
         <AddModal
-          prefillOrderCode={prefillCode}
+          prefillTrackingCode={prefillCode}
           onClose={() => { setShowAdd(false); setPrefillCode(""); }}
           onSave={addRecord}
         />
