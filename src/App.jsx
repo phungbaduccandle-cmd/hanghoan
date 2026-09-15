@@ -1418,7 +1418,11 @@ function ListView({ records, overdueDays, onUndo, onDelete }) {
 
 function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
   const [shopFilter, setShopFilter] = useState("Tất cả shop");
-  const records = shopFilter === "Tất cả shop" ? allRecords : allRecords.filter((r) => r.shop === shopFilter);
+  const [monthFilter, setMonthFilter] = useState("Tất cả tháng");
+  const months = [...new Set(allRecords.map((r) => r.month).filter(Boolean))].sort().reverse();
+  const records = allRecords
+    .filter((r) => shopFilter === "Tất cả shop" || r.shop === shopFilter)
+    .filter((r) => monthFilter === "Tất cả tháng" || r.month === monthFilter);
 
   const eff = records.map((r) => getEffectiveStatus(r, overdueDays));
   const counts = {
@@ -1441,15 +1445,26 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <select
-        value={shopFilter}
-        onChange={(e) => setShopFilter(e.target.value)}
-        className={inputCls}
-        style={{ ...inputStyle, width: "auto" }}
-      >
-        <option>Tất cả shop</option>
-        {SHOPS.map((s) => <option key={s}>{s}</option>)}
-      </select>
+      <div className="flex flex-wrap gap-3">
+        <select
+          value={shopFilter}
+          onChange={(e) => setShopFilter(e.target.value)}
+          className={inputCls}
+          style={{ ...inputStyle, width: "auto" }}
+        >
+          <option>Tất cả shop</option>
+          {SHOPS.map((s) => <option key={s}>{s}</option>)}
+        </select>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className={inputCls}
+          style={{ ...inputStyle, width: "auto" }}
+        >
+          <option>Tất cả tháng</option>
+          {months.map((m) => <option key={m}>{m}</option>)}
+        </select>
+      </div>
 
       <div className="flex flex-wrap gap-3 items-stretch">
         <StatCard label="Tổng số ghi nhận" value={counts.total} />
