@@ -1576,8 +1576,12 @@ function DashboardView({ records: allRecords, overdueDays, setOverdueDays }) {
 
 function DamagedView({ records: allRecords }) {
   const [shopFilter, setShopFilter] = useState("Tất cả shop");
+  const [monthFilter, setMonthFilter] = useState("Tất cả tháng");
+  const months = [...new Set(allRecords.map((r) => r.month).filter(Boolean))].sort().reverse();
   const damaged = allRecords.filter((r) => r.itemCondition === "Hỏng");
-  const filtered = shopFilter === "Tất cả shop" ? damaged : damaged.filter((r) => r.shop === shopFilter);
+  const filtered = damaged
+    .filter((r) => shopFilter === "Tất cả shop" || r.shop === shopFilter)
+    .filter((r) => monthFilter === "Tất cả tháng" || r.month === monthFilter);
 
   const totalValue = filtered.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
@@ -1600,15 +1604,26 @@ function DamagedView({ records: allRecords }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <select
-        value={shopFilter}
-        onChange={(e) => setShopFilter(e.target.value)}
-        className={inputCls}
-        style={{ ...inputStyle, width: "auto" }}
-      >
-        <option>Tất cả shop</option>
-        {SHOPS.map((s) => <option key={s}>{s}</option>)}
-      </select>
+      <div className="flex flex-wrap gap-3">
+        <select
+          value={shopFilter}
+          onChange={(e) => setShopFilter(e.target.value)}
+          className={inputCls}
+          style={{ ...inputStyle, width: "auto" }}
+        >
+          <option>Tất cả shop</option>
+          {SHOPS.map((s) => <option key={s}>{s}</option>)}
+        </select>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className={inputCls}
+          style={{ ...inputStyle, width: "auto" }}
+        >
+          <option>Tất cả tháng</option>
+          {months.map((m) => <option key={m}>{m}</option>)}
+        </select>
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <StatCard label="Tổng số đơn hỏng" value={filtered.length} tone={STATUS.OVERDUE} />
