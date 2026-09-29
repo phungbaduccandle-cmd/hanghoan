@@ -1838,6 +1838,7 @@ export default function App() {
     const toAdd = [];
     const toUpdate = [];
     const toFillPlaceholder = [];
+    const placeholdersToDelete = [];
 
     for (const p of parsed) {
       const key = normKey(p.orderCode, p.sku);
@@ -1849,6 +1850,45 @@ export default function App() {
 
       const trackKey = p.trackingCode ? p.trackingCode.toUpperCase() : null;
       const placeholder = trackKey ? placeholderByTrackingCode.get(trackKey) : null;
+
+      // trackingCode khớp với 1 placeholder đã quét, nhưng order_code+sku của
+      // dòng file này lại đã bị 1 dòng KHÁC (không phải placeholder) chiếm giữ
+      // từ trước (vd file này từng nhập rồi) — không thể upsert đè lên
+      // placeholder nữa vì sẽ vi phạm unique constraint (order_code, sku).
+      // Gộp dữ liệu đã quét được vào đúng dòng đang giữ order_code+sku đó,
+      // rồi xoá placeholder vì đã hết tác dụng.
+      const conflictingExisting = existingByKey.get(key);
+      if (placeholder && conflictingExisting && conflictingExisting.id !== placeholder.id) {
+        filledPlaceholderTrackingCodes.add(trackKey);
+        matchedScan++;
+        updated++;
+        const alreadyReceived = !!conflictingExisting.receivedDate;
+        toUpdate.push({
+          id: conflictingExisting.id,
+          order_code: p.orderCode,
+          tracking_code: p.trackingCode || conflictingExisting.trackingCode || null,
+          sku: p.sku || null,
+          // Chỉ lấy status/received_date/item_condition tu placeholder khi
+          // dong nay chua tung duoc nhan (chua co received_date) - tranh mat
+          // thong tin "da quet" da co; neu da nhan roi thi giu nguyen, khong
+          // ghi de boi du lieu cua placeholder.
+          status: alreadyReceived ? conflictingExisting.status : placeholder.status,
+          received_date: alreadyReceived ? conflictingExisting.receivedDate : placeholder.receivedDate,
+          item_condition: alreadyReceived ? conflictingExisting.itemCondition : placeholder.itemCondition,
+          shop: conflictingExisting.shop || p.shop || null,
+          product_name: p.productName || null,
+          request_date: p.requestDate || null,
+          quantity: p.quantity ?? null,
+          order_type: p.orderType || null,
+          reason: p.reason || null,
+          solution_plan: p.solutionPlan || null,
+          amount: p.amount ?? null,
+          source: p.source || null,
+          month: monthLabel(p.requestDate) || null,
+        });
+        placeholdersToDelete.push(placeholder.id);
+        continue;
+      }
 
       if (placeholder && !filledPlaceholderTrackingCodes.has(trackKey)) {
         // Dòng đầu tiên của trackingCode này -> lấp vào đúng dòng placeholder đã quét
@@ -1952,6 +1992,20 @@ export default function App() {
       }
     }
 
+    if (placeholdersToDelete.length) {
+      // Cac dong placeholder da duoc gop du lieu vao dong that o buoc
+      // toUpdate ben tren, gio khong con tac dung nua - xoa di de tranh
+      // trung lap.
+      const { error } = await supabase
+        .from("hang_hoan_returns")
+        .delete()
+        .in("id", placeholdersToDelete);
+      if (error) {
+        setSaveError("Không dọn được các dòng quét trùng: " + error.message);
+        return { added, updated, skipped, needsAction, noAction, matchedScan: 0 };
+      }
+    }
+
     if (toFillPlaceholder.length) {
       // onConflict theo id (không phải order_code,sku): dòng placeholder có sku
       // NULL, mà NULL không bao giờ được Postgres coi là trùng khi so khớp unique
@@ -1987,9 +2041,20 @@ export default function App() {
             amount: patch.amount,
             source: patch.source,
             month: patch.month,
+            // toUpdate thuong khong dung toi status/received_date/item_condition,
+            // nhung nhanh gop placeholder trung order_code+sku co gui kem 3
+            // truong nay (patch.received_date !== undefined) - chi ap dung khi
+            // do de tranh ghi de sai cho cac dong toUpdate binh thuong.
+            ...(patch.received_date !== undefined
+              ? { status: patch.status, receivedDate: patch.received_date, itemCondition: patch.item_condition }
+              : {}),
           };
         })
       );
+    }
+    if (placeholdersToDelete.length) {
+      const deletedSet = new Set(placeholdersToDelete);
+      setRecords((prev) => prev.filter((r) => !deletedSet.has(r.id)));
     }
     if (toFillPlaceholder.length) {
       const patchById = new Map(toFillPlaceholder.map((row) => [row.id, row]));
